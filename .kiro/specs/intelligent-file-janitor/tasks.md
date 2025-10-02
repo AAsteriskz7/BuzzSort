@@ -1,13 +1,22 @@
 # Implementation Plan
 
-- [ ] 1. Set up project structure with virtual environment and basic Tkinter GUI
+- [-] 1. Set up project structure with virtual environment and basic Tkinter GUI
+
+
+
   - [ ] 1.1 Create Python virtual environment and project structure
+
+
+
     - Create project directory and activate virtual environment
     - Create main Python script file (file_janitor.py)
     - Set up requirements.txt with initial dependencies
     - _Requirements: 6.1_
   
-  - [ ] 1.2 Build basic Tkinter GUI framework
+  - [x] 1.2 Build basic Tkinter GUI framework
+
+
+
     - Set up basic Tkinter window with title and layout
     - Add folder selection button and display area
     - Create placeholder areas for analysis results and plan display
