@@ -919,6 +919,303 @@ class FileScanner:
         return self.scan_errors.copy()
 
 
+class OrganizationPlanner:
+    """Creates file organization plans based on AI analysis"""
+    
+    def __init__(self):
+        self.plan = None
+    
+    def create_plan(self, files: List[Dict], ai_analysis: Dict) -> Dict:
+        """
+        Create a comprehensive organization plan based on AI analysis
+        
+        Args:
+            files: List of file information dictionaries
+            ai_analysis: AI clustering/analysis results
+            
+        Returns:
+            Dictionary containing the organization plan
+        """
+        try:
+            # Extract clusters from AI analysis
+            clusters = ai_analysis.get('clusters', [])
+            
+            if not clusters:
+                return {
+                    'folders_to_create': [],
+                    'file_operations': [],
+                    'summary': 'No clusters found in AI analysis',
+                    'error': 'No valid clusters to organize'
+                }
+            
+            # Generate folder structure
+            folders_to_create = self.generate_folder_structure(clusters)
+            
+            # Create file operations based on clusters
+            file_operations = []
+            file_name_map = {f['name']: f for f in files}
+            
+            for cluster in clusters:
+                category = cluster.get('category', 'Uncategorized')
+                suggested_folder = cluster.get('suggested_folder', category.lower().replace(' ', '_'))
+                cluster_files = cluster.get('files', [])
+                
+                for filename in cluster_files:
+                    # Find the full file info
+                    file_info = file_name_map.get(filename)
+                    
+                    if not file_info:
+                        continue
+                    
+                    # Create file operation
+                    operation = {
+                        'action': 'move',
+                        'source': file_info['path'],
+                        'destination_folder': suggested_folder,
+                        'original_name': filename,
+                        'new_name': filename,  # Will be updated if rename is suggested
+                        'category': category
+                    }
+                    
+                    file_operations.append(operation)
+            
+            # Handle naming conflicts
+            file_operations = self._resolve_naming_conflicts(file_operations)
+            
+            # Create summary
+            summary = self._generate_summary(folders_to_create, file_operations)
+            
+            # Store the plan
+            self.plan = {
+                'folders_to_create': folders_to_create,
+                'file_operations': file_operations,
+                'summary': summary,
+                'error': None
+            }
+            
+            return self.plan
+            
+        except Exception as e:
+            return {
+                'folders_to_create': [],
+                'file_operations': [],
+                'summary': f'Failed to create plan: {str(e)}',
+                'error': str(e)
+            }
+    
+    def generate_folder_structure(self, clusters: List[Dict]) -> List[str]:
+        """
+        Generate folder structure based on AI clusters
+        
+        Args:
+            clusters: List of cluster dictionaries from AI analysis
+            
+        Returns:
+            List of folder paths to create
+        """
+        folders = []
+        
+        for cluster in clusters:
+            suggested_folder = cluster.get('suggested_folder', '')
+            
+            if not suggested_folder:
+                # Fallback to category name
+                category = cluster.get('category', 'Uncategorized')
+                suggested_folder = category.lower().replace(' ', '_')
+            
+            # Clean folder name (remove invalid characters)
+            suggested_folder = self._sanitize_folder_name(suggested_folder)
+            
+            if suggested_folder and suggested_folder not in folders:
+                folders.append(suggested_folder)
+        
+        return sorted(folders)
+    
+    def suggest_renames(self, files: List[Dict], analysis: Dict) -> Dict[str, str]:
+        """
+        Generate rename suggestions based on AI content analysis
+        
+        Args:
+            files: List of file information dictionaries
+            analysis: AI analysis results with content insights
+            
+        Returns:
+            Dictionary mapping original filenames to suggested new names
+        """
+        rename_suggestions = {}
+        
+        # This method is designed to work with detailed content analysis
+        # For now, it returns an empty dict as content analysis happens per-file
+        # and is integrated into the file operations during plan creation
+        
+        return rename_suggestions
+    
+    def _sanitize_folder_name(self, folder_name: str) -> str:
+        """
+        Clean folder name by removing invalid characters
+        
+        Args:
+            folder_name: Original folder name
+            
+        Returns:
+            Sanitized folder name
+        """
+        # Remove or replace invalid characters for Windows/Unix
+        invalid_chars = '<>:"/\\|?*'
+        
+        for char in invalid_chars:
+            folder_name = folder_name.replace(char, '_')
+        
+        # Remove leading/trailing spaces and dots
+        folder_name = folder_name.strip('. ')
+        
+        # Replace multiple underscores with single underscore
+        while '__' in folder_name:
+            folder_name = folder_name.replace('__', '_')
+        
+        # Ensure it's not empty
+        if not folder_name:
+            folder_name = 'organized_files'
+        
+        return folder_name
+    
+    def _sanitize_filename(self, filename: str) -> str:
+        """
+        Clean filename by removing invalid characters
+        
+        Args:
+            filename: Original filename
+            
+        Returns:
+            Sanitized filename
+        """
+        # Split name and extension
+        path_obj = Path(filename)
+        name = path_obj.stem
+        ext = path_obj.suffix
+        
+        # Remove or replace invalid characters
+        invalid_chars = '<>:"/\\|?*'
+        
+        for char in invalid_chars:
+            name = name.replace(char, '_')
+        
+        # Remove leading/trailing spaces and dots
+        name = name.strip('. ')
+        
+        # Replace multiple underscores with single underscore
+        while '__' in name:
+            name = name.replace('__', '_')
+        
+        # Ensure it's not empty
+        if not name:
+            name = 'file'
+        
+        return name + ext
+    
+    def _resolve_naming_conflicts(self, file_operations: List[Dict]) -> List[Dict]:
+        """
+        Resolve naming conflicts by appending numbers to duplicate filenames
+        
+        Args:
+            file_operations: List of file operation dictionaries
+            
+        Returns:
+            Updated list with resolved naming conflicts
+        """
+        # Track filenames per destination folder
+        folder_files = defaultdict(list)
+        
+        # Group operations by destination folder
+        for operation in file_operations:
+            dest_folder = operation.get('destination_folder', '')
+            new_name = operation.get('new_name', operation.get('original_name', ''))
+            folder_files[dest_folder].append(new_name)
+        
+        # Find duplicates and resolve them
+        for dest_folder, filenames in folder_files.items():
+            # Count occurrences of each filename
+            name_counts = defaultdict(int)
+            name_indices = defaultdict(int)
+            
+            for filename in filenames:
+                name_counts[filename] += 1
+            
+            # Update operations with conflict resolution
+            for operation in file_operations:
+                if operation.get('destination_folder') != dest_folder:
+                    continue
+                
+                new_name = operation.get('new_name', operation.get('original_name', ''))
+                
+                # If this filename appears multiple times, add a number
+                if name_counts[new_name] > 1:
+                    name_indices[new_name] += 1
+                    
+                    # Split name and extension
+                    path_obj = Path(new_name)
+                    name = path_obj.stem
+                    ext = path_obj.suffix
+                    
+                    # Append number
+                    numbered_name = f"{name}_{name_indices[new_name]}{ext}"
+                    operation['new_name'] = numbered_name
+                    operation['conflict_resolved'] = True
+        
+        return file_operations
+    
+    def _generate_summary(self, folders: List[str], operations: List[Dict]) -> str:
+        """
+        Generate a human-readable summary of the organization plan
+        
+        Args:
+            folders: List of folders to create
+            operations: List of file operations
+            
+        Returns:
+            Summary string
+        """
+        total_files = len(operations)
+        total_folders = len(folders)
+        
+        # Count operations by type
+        moves = sum(1 for op in operations if op.get('action') == 'move')
+        renames = sum(1 for op in operations if op.get('action') == 'rename')
+        move_and_renames = sum(1 for op in operations if op.get('action') == 'move_and_rename')
+        
+        # Count conflicts resolved
+        conflicts_resolved = sum(1 for op in operations if op.get('conflict_resolved', False))
+        
+        summary_parts = [
+            f"Organization Plan Summary:",
+            f"  • {total_folders} folder(s) will be created",
+            f"  • {total_files} file(s) will be organized",
+        ]
+        
+        if moves > 0:
+            summary_parts.append(f"  • {moves} file(s) will be moved")
+        
+        if renames > 0:
+            summary_parts.append(f"  • {renames} file(s) will be renamed")
+        
+        if move_and_renames > 0:
+            summary_parts.append(f"  • {move_and_renames} file(s) will be moved and renamed")
+        
+        if conflicts_resolved > 0:
+            summary_parts.append(f"  • {conflicts_resolved} naming conflict(s) resolved")
+        
+        return '\n'.join(summary_parts)
+    
+    def get_plan(self) -> Optional[Dict]:
+        """
+        Get the current organization plan
+        
+        Returns:
+            Plan dictionary or None if no plan exists
+        """
+        return self.plan
+
+
 class FileJanitorApp:
     """Main application class for the Intelligent File Janitor"""
     
@@ -926,7 +1223,9 @@ class FileJanitorApp:
         self.root = tk.Tk()
         self.selected_folder = None
         self.scanner = FileScanner()
+        self.planner = OrganizationPlanner()
         self.scanned_files = []
+        self.current_plan = None
         
         # Load AI configuration
         self.config = AIConfig.load_config()
@@ -1105,16 +1404,32 @@ class FileJanitorApp:
             filenames = [file_info['name'] for file_info in self.scanned_files]
             
             # Limit to first 100 files for initial analysis
-            if len(filenames) > 100:
-                filenames = filenames[:100]
+            files_to_analyze = self.scanned_files[:100] if len(self.scanned_files) > 100 else self.scanned_files
+            filenames_to_analyze = [f['name'] for f in files_to_analyze]
+            
+            if len(self.scanned_files) > 100:
                 self.status_var.set(f"Analyzing first 100 of {len(self.scanned_files)} files...")
                 self.root.update()
             
             # Call AI service
-            result = self.ai_service.analyze_filenames(filenames)
+            result = self.ai_service.analyze_filenames(filenames_to_analyze)
             
-            # Display clustering results
-            self.display_ai_clusters(result)
+            # Create organization plan based on AI analysis
+            if not result.get('error') and result.get('clusters'):
+                self.status_var.set("Creating organization plan...")
+                self.root.update()
+                
+                self.current_plan = self.planner.create_plan(files_to_analyze, result)
+                
+                # Display the plan
+                self.display_organization_plan(self.current_plan)
+                
+                # Enable execute button if plan is valid
+                if self.current_plan and not self.current_plan.get('error'):
+                    self.execute_button.config(state=tk.NORMAL)
+            else:
+                # Display clustering results without plan
+                self.display_ai_clusters(result)
             
         except Exception as e:
             self.plan_text.config(state=tk.NORMAL)
@@ -1172,6 +1487,85 @@ class FileJanitorApp:
             return {
                 'error': f'Content analysis failed: {str(e)}'
             }
+    
+    def display_organization_plan(self, plan: Dict):
+        """
+        Display the complete organization plan in the plan text area
+        
+        Args:
+            plan: Organization plan dictionary from OrganizationPlanner
+        """
+        self.plan_text.config(state=tk.NORMAL)
+        self.plan_text.delete(1.0, tk.END)
+        
+        if plan.get('error'):
+            self.plan_text.insert(tk.END, f"ORGANIZATION PLAN ERROR\n")
+            self.plan_text.insert(tk.END, f"{'='*60}\n\n")
+            self.plan_text.insert(tk.END, f"Error: {plan['error']}\n")
+            self.plan_text.insert(tk.END, f"\n{plan.get('summary', '')}\n")
+        else:
+            # Display header
+            self.plan_text.insert(tk.END, f"FILE ORGANIZATION PLAN\n")
+            self.plan_text.insert(tk.END, f"{'='*60}\n\n")
+            
+            # Display summary
+            summary = plan.get('summary', '')
+            self.plan_text.insert(tk.END, f"{summary}\n\n")
+            
+            # Display folder structure
+            folders = plan.get('folders_to_create', [])
+            if folders:
+                self.plan_text.insert(tk.END, f"FOLDERS TO CREATE:\n")
+                self.plan_text.insert(tk.END, f"{'-'*40}\n")
+                for folder in folders:
+                    self.plan_text.insert(tk.END, f"📁 {folder}/\n")
+                self.plan_text.insert(tk.END, "\n")
+            
+            # Display file operations grouped by destination folder
+            operations = plan.get('file_operations', [])
+            if operations:
+                self.plan_text.insert(tk.END, f"FILE OPERATIONS:\n")
+                self.plan_text.insert(tk.END, f"{'-'*40}\n\n")
+                
+                # Group operations by destination folder
+                ops_by_folder = defaultdict(list)
+                for op in operations:
+                    dest_folder = op.get('destination_folder', 'root')
+                    ops_by_folder[dest_folder].append(op)
+                
+                # Display operations for each folder
+                for folder, folder_ops in sorted(ops_by_folder.items()):
+                    category = folder_ops[0].get('category', 'Files') if folder_ops else 'Files'
+                    self.plan_text.insert(tk.END, f"📁 {folder}/ ({len(folder_ops)} files)\n")
+                    self.plan_text.insert(tk.END, f"   Category: {category}\n\n")
+                    
+                    # Show first 10 operations for this folder
+                    display_count = min(10, len(folder_ops))
+                    for op in folder_ops[:display_count]:
+                        original_name = op.get('original_name', 'unknown')
+                        new_name = op.get('new_name', original_name)
+                        action = op.get('action', 'move')
+                        
+                        # Determine the operation symbol
+                        if action == 'move_and_rename' or (new_name != original_name):
+                            self.plan_text.insert(tk.END, f"   📄 {original_name}\n")
+                            self.plan_text.insert(tk.END, f"      → Rename to: {new_name}\n")
+                            if op.get('conflict_resolved'):
+                                self.plan_text.insert(tk.END, f"      ⚠️  Conflict resolved\n")
+                        else:
+                            self.plan_text.insert(tk.END, f"   📄 {original_name}\n")
+                    
+                    if len(folder_ops) > display_count:
+                        self.plan_text.insert(tk.END, f"   ... and {len(folder_ops) - display_count} more files\n")
+                    
+                    self.plan_text.insert(tk.END, "\n")
+            
+            # Display action prompt
+            self.plan_text.insert(tk.END, f"{'='*60}\n")
+            self.plan_text.insert(tk.END, f"💡 Review the plan above and click 'Execute Plan' to proceed.\n")
+            self.plan_text.insert(tk.END, f"⚠️  WARNING: File operations cannot be undone!\n")
+        
+        self.plan_text.config(state=tk.DISABLED)
     
     def display_ai_clusters(self, result: Dict):
         """Display AI clustering results in the plan text area"""
