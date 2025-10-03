@@ -134,27 +134,12 @@ python file_janitor.py
 
 ## Configuration
 
-### Switching AI Providers
-
-To switch from Gemini to Claude, update `ai_config.json`:
-
-```json
-{
-  "provider": "claude",
-  "gemini_api_key": "your_gemini_key",
-  "claude_api_key": "YOUR_CLAUDE_API_KEY_HERE"
-}
-```
-
-**Note**: Claude integration is currently a stub. Full implementation coming soon.
-
 ### Environment Variables
 
 You can also configure the application using environment variables:
 
 ```bash
-export AI_PROVIDER=gemini
-export GEMINI_API_KEY=your_key_here
+export AI_PROVIDER=claude
 export CLAUDE_API_KEY=your_key_here
 ```
 
