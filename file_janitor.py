@@ -11,6 +11,587 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
+from abc import ABC, abstractmethod
+from enum import Enum
+import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
+import json
+from PIL import Image
+
+
+class AIProvider(Enum):
+    """Enum for supported AI providers"""
+    GEMINI = "gemini"
+    CLAUDE = "claude"
+
+
+class AIConfig:
+    """Configuration management for AI services"""
+    
+    CONFIG_FILE = "ai_config.json"
+    
+    @staticmethod
+    def load_config() -> Dict:
+        """
+        Load AI configuration from file or environment variables
+        
+        Returns:
+            Dictionary with configuration settings
+        """
+        config = {
+            'provider': 'gemini',
+            'gemini_api_key': '',
+            'claude_api_key': ''
+        }
+        
+        # Try to load from config file
+        try:
+            if os.path.exists(AIConfig.CONFIG_FILE):
+                with open(AIConfig.CONFIG_FILE, 'r') as f:
+                    file_config = json.load(f)
+                    config.update(file_config)
+        except Exception as e:
+            print(f"Warning: Could not load config file: {str(e)}")
+        
+        # Override with environment variables if present
+        if os.environ.get('GEMINI_API_KEY'):
+            config['gemini_api_key'] = os.environ.get('GEMINI_API_KEY')
+        if os.environ.get('CLAUDE_API_KEY'):
+            config['claude_api_key'] = os.environ.get('CLAUDE_API_KEY')
+        if os.environ.get('AI_PROVIDER'):
+            config['provider'] = os.environ.get('AI_PROVIDER')
+        
+        return config
+    
+    @staticmethod
+    def save_config(config: Dict) -> bool:
+        """
+        Save AI configuration to file
+        
+        Args:
+            config: Configuration dictionary to save
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            with open(AIConfig.CONFIG_FILE, 'w') as f:
+                json.dump(config, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error saving config: {str(e)}")
+            return False
+    
+    @staticmethod
+    def get_api_key(provider: AIProvider, config: Dict) -> Optional[str]:
+        """
+        Get API key for specified provider
+        
+        Args:
+            provider: AIProvider enum value
+            config: Configuration dictionary
+            
+        Returns:
+            API key string or None if not found
+        """
+        if provider == AIProvider.GEMINI:
+            return config.get('gemini_api_key', '')
+        elif provider == AIProvider.CLAUDE:
+            return config.get('claude_api_key', '')
+        return None
+
+
+class AIServiceInterface(ABC):
+    """Abstract base class for AI service providers"""
+    
+    @abstractmethod
+    def analyze_filenames(self, filenames: List[str]) -> Dict:
+        """
+        Analyze a batch of filenames and group them into logical clusters
+        
+        Args:
+            filenames: List of filenames to analyze
+            
+        Returns:
+            Dictionary with cluster information
+        """
+        pass
+    
+    @abstractmethod
+    def analyze_text_content(self, filename: str, text_preview: str) -> Dict:
+        """
+        Analyze text content to determine file purpose and suggest better name
+        
+        Args:
+            filename: Original filename
+            text_preview: Preview of text content
+            
+        Returns:
+            Dictionary with analysis results and name suggestions
+        """
+        pass
+    
+    @abstractmethod
+    def analyze_image(self, image_path: str) -> Dict:
+        """
+        Analyze image content using vision capabilities
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Dictionary with scene description and name suggestions
+        """
+        pass
+    
+    @abstractmethod
+    def test_connection(self) -> bool:
+        """
+        Test if the API connection is working
+        
+        Returns:
+            True if connection successful, False otherwise
+        """
+        pass
+
+
+class GeminiService(AIServiceInterface):
+    """Google Gemini AI service implementation"""
+    
+    def __init__(self, api_key: str):
+        """
+        Initialize Gemini service
+        
+        Args:
+            api_key: Google Gemini API key
+        """
+        self.api_key = api_key
+        self.model = None
+        self.vision_model = None
+        self._initialize_client()
+    
+    def _initialize_client(self):
+        """Initialize the Gemini API client"""
+        try:
+            # Configure the API key
+            genai.configure(api_key=self.api_key)
+            
+            # Initialize text model (Gemini Pro)
+            self.model = genai.GenerativeModel(
+                'gemini-1.5-flash',
+                safety_settings={
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                }
+            )
+            
+            # Initialize vision model (Gemini Pro Vision)
+            self.vision_model = genai.GenerativeModel(
+                'gemini-1.5-flash',
+                safety_settings={
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                }
+            )
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize Gemini client: {str(e)}")
+    
+    def analyze_filenames(self, filenames: List[str]) -> Dict:
+        """
+        Analyze filenames using Gemini API
+        
+        Args:
+            filenames: List of filenames to analyze
+            
+        Returns:
+            Dictionary with cluster information
+        """
+        try:
+            if not self.model:
+                return {
+                    'clusters': [],
+                    'error': 'Model not initialized'
+                }
+            
+            # Limit batch size to avoid token limits
+            batch_size = 100
+            if len(filenames) > batch_size:
+                filenames = filenames[:batch_size]
+            
+            # Create prompt for filename clustering
+            prompt = f"""Analyze these {len(filenames)} filenames and group them into logical categories based on their names, patterns, and likely content.
+
+Filenames:
+{chr(10).join(f"- {name}" for name in filenames)}
+
+Please organize these files into 3-7 meaningful clusters. For each cluster:
+1. Give it a descriptive category name
+2. List which files belong to it
+3. Provide a brief explanation of why they're grouped together
+
+Format your response as JSON with this structure:
+{{
+  "clusters": [
+    {{
+      "category": "Category Name",
+      "files": ["file1.txt", "file2.txt"],
+      "description": "Brief explanation",
+      "suggested_folder": "suggested_folder_name"
+    }}
+  ]
+}}"""
+            
+            # Generate response
+            response = self.model.generate_content(prompt)
+            
+            if not response or not response.text:
+                return {
+                    'clusters': [],
+                    'error': 'Empty response from API'
+                }
+            
+            # Parse JSON response
+            response_text = response.text.strip()
+            
+            # Remove markdown code blocks if present
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.startswith('```'):
+                response_text = response_text[3:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            
+            response_text = response_text.strip()
+            
+            result = json.loads(response_text)
+            
+            return {
+                'clusters': result.get('clusters', []),
+                'total_files': len(filenames),
+                'error': None
+            }
+            
+        except json.JSONDecodeError as e:
+            return {
+                'clusters': [],
+                'error': f'Failed to parse AI response: {str(e)}',
+                'raw_response': response.text if response else None
+            }
+        except Exception as e:
+            return {
+                'clusters': [],
+                'error': f'Analysis failed: {str(e)}'
+            }
+    
+    def analyze_text_content(self, filename: str, text_preview: str) -> Dict:
+        """
+        Analyze text content using Gemini API
+        
+        Args:
+            filename: Original filename
+            text_preview: Preview of text content
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        try:
+            if not self.model:
+                return {
+                    'purpose': 'Unknown',
+                    'suggested_name': filename,
+                    'error': 'Model not initialized'
+                }
+            
+            # Create prompt for content analysis
+            prompt = f"""Analyze this document and suggest a better, more descriptive filename.
+
+Current filename: {filename}
+
+Document content preview:
+{text_preview[:2000]}
+
+Based on the content, provide:
+1. The main purpose/topic of this document
+2. A suggested descriptive filename (keep extension, use underscores or hyphens, be concise but clear)
+3. A brief explanation of why this name is better
+
+Format your response as JSON:
+{{
+  "purpose": "Brief description of document purpose",
+  "suggested_name": "better_filename.ext",
+  "explanation": "Why this name is better",
+  "confidence": "high/medium/low"
+}}"""
+            
+            # Generate response
+            response = self.model.generate_content(prompt)
+            
+            if not response or not response.text:
+                return {
+                    'purpose': 'Unknown',
+                    'suggested_name': filename,
+                    'error': 'Empty response from API'
+                }
+            
+            # Parse JSON response
+            response_text = response.text.strip()
+            
+            # Remove markdown code blocks if present
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.startswith('```'):
+                response_text = response_text[3:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            
+            response_text = response_text.strip()
+            
+            result = json.loads(response_text)
+            
+            return {
+                'purpose': result.get('purpose', 'Unknown'),
+                'suggested_name': result.get('suggested_name', filename),
+                'explanation': result.get('explanation', ''),
+                'confidence': result.get('confidence', 'medium'),
+                'error': None
+            }
+            
+        except json.JSONDecodeError as e:
+            return {
+                'purpose': 'Unknown',
+                'suggested_name': filename,
+                'error': f'Failed to parse AI response: {str(e)}',
+                'raw_response': response.text if response else None
+            }
+        except Exception as e:
+            return {
+                'purpose': 'Unknown',
+                'suggested_name': filename,
+                'error': f'Analysis failed: {str(e)}'
+            }
+    
+    def analyze_image(self, image_path: str) -> Dict:
+        """
+        Analyze image using Gemini Vision API
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Dictionary with scene description and suggestions
+        """
+        try:
+            if not self.vision_model:
+                return {
+                    'description': 'Unknown',
+                    'suggested_name': Path(image_path).name,
+                    'error': 'Vision model not initialized'
+                }
+            
+            # Load the image
+            try:
+                img = Image.open(image_path)
+            except Exception as e:
+                return {
+                    'description': 'Unknown',
+                    'suggested_name': Path(image_path).name,
+                    'error': f'Could not open image: {str(e)}'
+                }
+            
+            # Get current filename
+            current_name = Path(image_path).name
+            extension = Path(image_path).suffix
+            
+            # Create prompt for image analysis
+            prompt = f"""Analyze this image and suggest a descriptive filename.
+
+Current filename: {current_name}
+
+Please provide:
+1. A detailed description of what's in the image (main subject, setting, notable features)
+2. A suggested descriptive filename (keep the {extension} extension, use underscores or hyphens, be concise but clear)
+3. Key elements that make this image unique
+
+Format your response as JSON:
+{{
+  "description": "Detailed description of the image",
+  "suggested_name": "descriptive_name{extension}",
+  "key_elements": ["element1", "element2", "element3"],
+  "confidence": "high/medium/low"
+}}"""
+            
+            # Generate response with image
+            response = self.vision_model.generate_content([prompt, img])
+            
+            if not response or not response.text:
+                return {
+                    'description': 'Unknown',
+                    'suggested_name': current_name,
+                    'error': 'Empty response from API'
+                }
+            
+            # Parse JSON response
+            response_text = response.text.strip()
+            
+            # Remove markdown code blocks if present
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.startswith('```'):
+                response_text = response_text[3:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            
+            response_text = response_text.strip()
+            
+            result = json.loads(response_text)
+            
+            return {
+                'description': result.get('description', 'Unknown'),
+                'suggested_name': result.get('suggested_name', current_name),
+                'key_elements': result.get('key_elements', []),
+                'confidence': result.get('confidence', 'medium'),
+                'error': None
+            }
+            
+        except json.JSONDecodeError as e:
+            return {
+                'description': 'Unknown',
+                'suggested_name': Path(image_path).name,
+                'error': f'Failed to parse AI response: {str(e)}',
+                'raw_response': response.text if response else None
+            }
+        except Exception as e:
+            return {
+                'description': 'Unknown',
+                'suggested_name': Path(image_path).name,
+                'error': f'Image analysis failed: {str(e)}'
+            }
+    
+    def test_connection(self) -> bool:
+        """
+        Test Gemini API connection
+        
+        Returns:
+            True if connection successful
+        """
+        try:
+            if not self.model:
+                return False
+            
+            # Send a simple test prompt
+            response = self.model.generate_content("Hello, respond with 'OK' if you can read this.")
+            
+            # Check if we got a valid response
+            if response and response.text:
+                return True
+            return False
+            
+        except Exception as e:
+            print(f"Gemini connection test failed: {str(e)}")
+            return False
+
+
+class ClaudeService(AIServiceInterface):
+    """Anthropic Claude AI service implementation (stub for future migration)"""
+    
+    def __init__(self, api_key: str):
+        """
+        Initialize Claude service
+        
+        Args:
+            api_key: Anthropic Claude API key
+        """
+        self.api_key = api_key
+        self.client = None
+        # Claude initialization will be implemented when migrating from Gemini
+    
+    def analyze_filenames(self, filenames: List[str]) -> Dict:
+        """
+        Analyze filenames using Claude API (stub)
+        
+        Args:
+            filenames: List of filenames to analyze
+            
+        Returns:
+            Dictionary with cluster information
+        """
+        return {
+            'clusters': [],
+            'error': 'Claude service not yet implemented'
+        }
+    
+    def analyze_text_content(self, filename: str, text_preview: str) -> Dict:
+        """
+        Analyze text content using Claude API (stub)
+        
+        Args:
+            filename: Original filename
+            text_preview: Preview of text content
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        return {
+            'purpose': 'Unknown',
+            'suggested_name': filename,
+            'error': 'Claude service not yet implemented'
+        }
+    
+    def analyze_image(self, image_path: str) -> Dict:
+        """
+        Analyze image using Claude Vision API (stub)
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Dictionary with scene description and suggestions
+        """
+        return {
+            'description': 'Unknown',
+            'suggested_name': Path(image_path).name,
+            'error': 'Claude service not yet implemented'
+        }
+    
+    def test_connection(self) -> bool:
+        """
+        Test Claude API connection (stub)
+        
+        Returns:
+            False (not implemented)
+        """
+        return False
+
+
+class AIServiceFactory:
+    """Factory class for creating AI service instances"""
+    
+    @staticmethod
+    def create_service(provider: AIProvider, api_key: str) -> AIServiceInterface:
+        """
+        Create an AI service instance based on provider
+        
+        Args:
+            provider: AIProvider enum value
+            api_key: API key for the provider
+            
+        Returns:
+            AIServiceInterface implementation
+            
+        Raises:
+            ValueError: If provider is not supported
+        """
+        if provider == AIProvider.GEMINI:
+            return GeminiService(api_key)
+        elif provider == AIProvider.CLAUDE:
+            return ClaudeService(api_key)
+        else:
+            raise ValueError(f"Unsupported AI provider: {provider}")
 
 
 class FileScanner:
@@ -18,6 +599,45 @@ class FileScanner:
     
     def __init__(self):
         self.scan_errors = []
+    
+    def extract_text_preview(self, file_path: str, max_chars: int = 2000) -> Optional[str]:
+        """
+        Extract text preview from common document formats
+        
+        Args:
+            file_path: Path to the file
+            max_chars: Maximum characters to extract
+            
+        Returns:
+            Text preview string or None if extraction fails
+        """
+        try:
+            path_obj = Path(file_path)
+            extension = path_obj.suffix.lower()
+            
+            # Text-based formats that can be read directly
+            text_extensions = {'.txt', '.md', '.csv', '.json', '.xml', '.html', '.htm', 
+                             '.py', '.js', '.java', '.cpp', '.c', '.h', '.css', '.sql',
+                             '.log', '.ini', '.cfg', '.yaml', '.yml', '.toml'}
+            
+            if extension in text_extensions:
+                # Try different encodings
+                for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                    try:
+                        with open(file_path, 'r', encoding=encoding) as f:
+                            content = f.read(max_chars)
+                            return content
+                    except UnicodeDecodeError:
+                        continue
+                    except Exception:
+                        break
+            
+            # For other formats, return None (could be extended with libraries like python-docx, PyPDF2, etc.)
+            return None
+            
+        except Exception as e:
+            self.scan_errors.append(f"Could not extract text from {file_path}: {str(e)}")
+            return None
     
     def scan_directory(self, path: str) -> List[Dict]:
         """
@@ -307,7 +927,17 @@ class FileJanitorApp:
         self.selected_folder = None
         self.scanner = FileScanner()
         self.scanned_files = []
+        
+        # Load AI configuration
+        self.config = AIConfig.load_config()
+        
+        # AI service configuration
+        provider_str = self.config.get('provider', 'gemini')
+        self.ai_provider = AIProvider.GEMINI if provider_str == 'gemini' else AIProvider.CLAUDE
+        self.ai_service = None  # Will be initialized when API key is provided
+        
         self.setup_gui()
+        self._initialize_ai_service()
     
     def setup_gui(self):
         """Set up the basic Tkinter GUI framework"""
@@ -456,11 +1086,139 @@ class FileJanitorApp:
             if errors:
                 self.display_scan_errors(errors)
             
+            # Perform AI-based filename analysis if service is available
+            if self.ai_service and len(self.scanned_files) > 0:
+                self.status_var.set("Running AI analysis on filenames...")
+                self.root.update()
+                self.perform_ai_filename_analysis()
+            
             self.status_var.set(f"Analysis complete - Found {len(self.scanned_files)} files")
             
         except Exception as e:
             messagebox.showerror("Scan Error", f"An error occurred during scanning: {str(e)}")
             self.status_var.set("Scan failed")
+    
+    def perform_ai_filename_analysis(self):
+        """Perform AI-based filename clustering analysis"""
+        try:
+            # Extract just the filenames
+            filenames = [file_info['name'] for file_info in self.scanned_files]
+            
+            # Limit to first 100 files for initial analysis
+            if len(filenames) > 100:
+                filenames = filenames[:100]
+                self.status_var.set(f"Analyzing first 100 of {len(self.scanned_files)} files...")
+                self.root.update()
+            
+            # Call AI service
+            result = self.ai_service.analyze_filenames(filenames)
+            
+            # Display clustering results
+            self.display_ai_clusters(result)
+            
+        except Exception as e:
+            self.plan_text.config(state=tk.NORMAL)
+            self.plan_text.insert(tk.END, f"\n⚠️ AI Analysis Error: {str(e)}\n")
+            self.plan_text.config(state=tk.DISABLED)
+    
+    def perform_content_analysis(self, file_info: Dict) -> Dict:
+        """
+        Perform content-based analysis on a single file
+        
+        Args:
+            file_info: File information dictionary
+            
+        Returns:
+            Analysis result dictionary
+        """
+        try:
+            if not self.ai_service:
+                return {
+                    'error': 'AI service not available'
+                }
+            
+            # Check file type
+            file_type = file_info.get('type', 'other')
+            
+            # For images, use image analysis
+            if file_type == 'image':
+                result = self.ai_service.analyze_image(file_info['path'])
+                return result
+            
+            # For documents, use text content analysis
+            elif file_type == 'document':
+                # Extract text preview
+                text_preview = self.scanner.extract_text_preview(file_info['path'])
+                
+                if not text_preview:
+                    return {
+                        'error': 'Could not extract text content'
+                    }
+                
+                # Analyze content
+                result = self.ai_service.analyze_text_content(
+                    file_info['name'],
+                    text_preview
+                )
+                
+                return result
+            
+            else:
+                return {
+                    'error': f'Content analysis not supported for file type: {file_type}'
+                }
+            
+        except Exception as e:
+            return {
+                'error': f'Content analysis failed: {str(e)}'
+            }
+    
+    def display_ai_clusters(self, result: Dict):
+        """Display AI clustering results in the plan text area"""
+        self.plan_text.config(state=tk.NORMAL)
+        self.plan_text.delete(1.0, tk.END)
+        
+        if result.get('error'):
+            self.plan_text.insert(tk.END, f"AI ANALYSIS ERROR\n")
+            self.plan_text.insert(tk.END, f"{'='*60}\n\n")
+            self.plan_text.insert(tk.END, f"Error: {result['error']}\n")
+            
+            if result.get('raw_response'):
+                self.plan_text.insert(tk.END, f"\nRaw response:\n{result['raw_response'][:500]}\n")
+        else:
+            clusters = result.get('clusters', [])
+            total_files = result.get('total_files', 0)
+            
+            self.plan_text.insert(tk.END, f"AI-POWERED FILE ORGANIZATION PLAN\n")
+            self.plan_text.insert(tk.END, f"{'='*60}\n\n")
+            self.plan_text.insert(tk.END, f"Analyzed {total_files} files and identified {len(clusters)} categories:\n\n")
+            
+            for i, cluster in enumerate(clusters, 1):
+                category = cluster.get('category', 'Unknown')
+                files = cluster.get('files', [])
+                description = cluster.get('description', 'No description')
+                suggested_folder = cluster.get('suggested_folder', category.lower().replace(' ', '_'))
+                
+                self.plan_text.insert(tk.END, f"📁 Category {i}: {category}\n")
+                self.plan_text.insert(tk.END, f"   Suggested folder: {suggested_folder}/\n")
+                self.plan_text.insert(tk.END, f"   Files: {len(files)}\n")
+                self.plan_text.insert(tk.END, f"   Description: {description}\n")
+                
+                # Show first few files as examples
+                example_count = min(5, len(files))
+                if example_count > 0:
+                    self.plan_text.insert(tk.END, f"   Examples:\n")
+                    for file in files[:example_count]:
+                        self.plan_text.insert(tk.END, f"      • {file}\n")
+                    
+                    if len(files) > example_count:
+                        self.plan_text.insert(tk.END, f"      ... and {len(files) - example_count} more\n")
+                
+                self.plan_text.insert(tk.END, "\n")
+            
+            self.plan_text.insert(tk.END, f"\n💡 TIP: Review these suggestions and use 'Execute Plan' to organize files.\n")
+        
+        self.plan_text.config(state=tk.DISABLED)
     
     def display_analysis_results(self, file_type_stats: Dict[str, Dict], date_suggestions: List[Dict]):
         """Display the enhanced analysis results in the analysis text area"""
@@ -551,6 +1309,52 @@ class FileJanitorApp:
         self.status_var.set("Plan execution functionality will be implemented in future tasks")
         messagebox.showinfo("Not Implemented", 
                           "Plan execution will be implemented in task 5.")
+    
+    def _initialize_ai_service(self):
+        """Initialize AI service based on current provider and API key"""
+        try:
+            api_key = AIConfig.get_api_key(self.ai_provider, self.config)
+            
+            if api_key:
+                self.ai_service = AIServiceFactory.create_service(
+                    self.ai_provider, 
+                    api_key
+                )
+                
+                # Test the connection
+                if self.ai_service.test_connection():
+                    provider_name = self.ai_provider.value.capitalize()
+                    self.status_var.set(f"Connected to {provider_name} AI service")
+                else:
+                    self.status_var.set(f"Warning: Could not verify AI connection")
+            else:
+                self.ai_service = None
+                self.status_var.set("No AI API key configured")
+                
+        except Exception as e:
+            messagebox.showwarning(
+                "AI Service Warning", 
+                f"Could not initialize AI service: {str(e)}\n\n"
+                "Please configure your API key in Settings or set environment variable."
+            )
+            self.ai_service = None
+            self.status_var.set("AI service initialization failed")
+    
+    def switch_ai_provider(self, provider: AIProvider):
+        """
+        Switch between AI providers
+        
+        Args:
+            provider: AIProvider enum value to switch to
+        """
+        self.ai_provider = provider
+        self._initialize_ai_service()
+        
+        if self.ai_service:
+            provider_name = provider.value.capitalize()
+            self.status_var.set(f"Switched to {provider_name} AI provider")
+        else:
+            self.status_var.set(f"Failed to switch provider - check API key")
     
     def run(self):
         """Start the application"""

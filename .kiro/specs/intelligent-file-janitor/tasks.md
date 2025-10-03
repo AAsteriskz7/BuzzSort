@@ -18,11 +18,6 @@
 
 - [x] 2. Implement file system scanning functionality
 
-
-
-
-
-
   - [x] 2.1 Create FileScanner class with directory scanning
 
     - Implement recursive directory traversal
@@ -32,23 +27,23 @@
 
   - [x] 2.2 Add file type categorization and filtering
 
-
     - Group files by extension (documents, images, videos, other)
     - Implement basic date-based filtering suggestions
     - Display file count summaries in GUI
     - _Requirements: 1.3, 6.2_
 
-- [ ] 3. Create AI service abstraction layer and integrate APIs
+- [x] 3. Create AI service abstraction layer and integrate APIs
 
-  - [ ] 3.1 Build AI service abstraction layer for easy provider switching
+  - [x] 3.1 Build AI service abstraction layer for easy provider switching
 
     - Create AIServiceInterface base class with standard methods
     - Implement GeminiService class inheriting from interface
     - Create ClaudeService class stub for future migration
+
     - Add provider switching mechanism in configuration
     - _Requirements: 3.1, 3.4_
 
-  - [ ] 3.2 Set up Gemini API client and authentication
+  - [x] 3.2 Set up Gemini API client and authentication
 
     - Install google-generativeai and anthropic packages in venv
     - Implement Gemini API key handling and connection testing
@@ -56,27 +51,29 @@
     - Create API configuration management system
     - _Requirements: 3.1, 3.4_
 
-  - [ ] 3.3 Implement filename-based triage (Pass 1) using abstraction layer
+  - [x] 3.3 Implement filename-based triage (Pass 1) using abstraction layer
 
     - Send batch of filenames to current AI provider for clustering
     - Parse AI response to group files into logical categories
     - Display cluster summaries to user
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 3.4 Add content analysis for text files (Pass 2)
+  - [x] 3.4 Add content analysis for text files (Pass 2)
 
     - Extract text previews from common document formats
     - Send text content to AI service for purpose analysis
     - Generate descriptive names based on content analysis
     - _Requirements: 3.1, 3.4_
 
-  - [ ] 3.5 Add image analysis capabilities with provider abstraction
+  - [x] 3.5 Add image analysis capabilities with provider abstraction
+
     - Read image files and send to AI vision API through abstraction layer
     - Extract scene descriptions and generate meaningful names
     - Handle image analysis errors gracefully across providers
     - _Requirements: 3.2, 3.4_
 
 - [ ] 4. Create organization plan generation system
+
 
   - [ ] 4.1 Implement OrganizationPlanner class
 
