@@ -174,6 +174,9 @@ class GeminiService(AIServiceInterface):
     def _initialize_client(self):
         """Initialize the Gemini API client"""
         try:
+            if not self.api_key or len(self.api_key.strip()) == 0:
+                raise ValueError("API key is empty or invalid")
+            
             # Configure the API key
             genai.configure(api_key=self.api_key)
             
@@ -199,8 +202,10 @@ class GeminiService(AIServiceInterface):
                 }
             )
             
+        except ValueError as e:
+            raise RuntimeError(f"Invalid API key: {str(e)}")
         except Exception as e:
-            raise RuntimeError(f"Failed to initialize Gemini client: {str(e)}")
+            raise RuntimeError(f"Failed to initialize Gemini client. Check your API key and internet connection: {str(e)}")
     
     def analyze_filenames(self, filenames: List[str]) -> Dict:
         """
@@ -216,7 +221,13 @@ class GeminiService(AIServiceInterface):
             if not self.model:
                 return {
                     'clusters': [],
-                    'error': 'Model not initialized'
+                    'error': 'AI model not initialized. Check your API key configuration.'
+                }
+            
+            if not filenames:
+                return {
+                    'clusters': [],
+                    'error': 'No filenames provided for analysis'
                 }
             
             # Limit batch size to avoid token limits
@@ -248,12 +259,35 @@ Format your response as JSON with this structure:
 }}"""
             
             # Generate response
-            response = self.model.generate_content(prompt)
+            try:
+                response = self.model.generate_content(prompt)
+            except Exception as api_error:
+                error_str = str(api_error).lower()
+                if 'quota' in error_str or 'rate limit' in error_str:
+                    return {
+                        'clusters': [],
+                        'error': 'API quota exceeded or rate limit reached. Please try again later.'
+                    }
+                elif 'api key' in error_str or 'authentication' in error_str:
+                    return {
+                        'clusters': [],
+                        'error': 'API authentication failed. Check your API key.'
+                    }
+                elif 'network' in error_str or 'connection' in error_str:
+                    return {
+                        'clusters': [],
+                        'error': 'Network error. Check your internet connection.'
+                    }
+                else:
+                    return {
+                        'clusters': [],
+                        'error': f'API request failed: {str(api_error)}'
+                    }
             
             if not response or not response.text:
                 return {
                     'clusters': [],
-                    'error': 'Empty response from API'
+                    'error': 'Empty response from AI service. Try again or check your API quota.'
                 }
             
             # Parse JSON response
@@ -269,7 +303,20 @@ Format your response as JSON with this structure:
             
             response_text = response_text.strip()
             
-            result = json.loads(response_text)
+            try:
+                result = json.loads(response_text)
+            except json.JSONDecodeError:
+                return {
+                    'clusters': [],
+                    'error': 'AI returned invalid response format. Try again.',
+                    'raw_response': response_text[:500]
+                }
+            
+            if not result.get('clusters'):
+                return {
+                    'clusters': [],
+                    'error': 'AI did not return any file clusters. Try with different files.'
+                }
             
             return {
                 'clusters': result.get('clusters', []),
@@ -277,16 +324,10 @@ Format your response as JSON with this structure:
                 'error': None
             }
             
-        except json.JSONDecodeError as e:
-            return {
-                'clusters': [],
-                'error': f'Failed to parse AI response: {str(e)}',
-                'raw_response': response.text if response else None
-            }
         except Exception as e:
             return {
                 'clusters': [],
-                'error': f'Analysis failed: {str(e)}'
+                'error': f'Unexpected error during analysis: {str(e)}'
             }
     
     def analyze_text_content(self, filename: str, text_preview: str) -> Dict:
@@ -664,16 +705,31 @@ class FileScanner:
                 return files
             
             # Recursively scan all files
-            for file_path in root_path.rglob('*'):
-                if file_path.is_file():
-                    file_info = self.get_file_info(str(file_path))
-                    if file_info:  # Only add if we successfully got file info
-                        files.append(file_info)
+            try:
+                for file_path in root_path.rglob('*'):
+                    try:
+                        if file_path.is_file():
+                            file_info = self.get_file_info(str(file_path))
+                            if file_info:  # Only add if we successfully got file info
+                                files.append(file_info)
+                    except PermissionError:
+                        self.scan_errors.append(f"Permission denied: {file_path.name}")
+                    except OSError as e:
+                        self.scan_errors.append(f"Cannot access: {file_path.name} - {str(e)}")
+                    except Exception as e:
+                        self.scan_errors.append(f"Error reading: {file_path.name} - {str(e)}")
                         
-        except PermissionError as e:
-            self.scan_errors.append(f"Permission denied accessing directory: {path} - {str(e)}")
+            except PermissionError:
+                self.scan_errors.append(f"Permission denied accessing some folders in: {path}")
+            except OSError as e:
+                self.scan_errors.append(f"System error scanning directory: {str(e)}")
+                        
+        except PermissionError:
+            self.scan_errors.append(f"Permission denied: Cannot access directory '{path}'")
+        except OSError as e:
+            self.scan_errors.append(f"System error: Cannot read directory '{path}' - {str(e)}")
         except Exception as e:
-            self.scan_errors.append(f"Unexpected error scanning directory: {path} - {str(e)}")
+            self.scan_errors.append(f"Unexpected error scanning directory: {str(e)}")
         
         return files
     
@@ -1586,6 +1642,8 @@ class FileJanitorApp:
         self.planner = OrganizationPlanner()
         self.executor = PlanExecutor()
         self.scanned_files = []
+        self.filtered_files = []  # Files selected for organization
+        self.date_suggestions = []  # Date-based filtering suggestions
         self.current_plan = None
         self.is_processing = False  # Track if operation is in progress
         
@@ -1603,9 +1661,18 @@ class FileJanitorApp:
     def setup_gui(self):
         """Set up the basic Tkinter GUI framework"""
         # Configure main window
-        self.root.title("Intelligent File Janitor")
-        self.root.geometry("800x600")
-        self.root.minsize(600, 400)
+        self.root.title("🧹 Intelligent File Janitor")
+        self.root.geometry("900x700")
+        self.root.minsize(700, 500)
+        
+        # Configure ttk style for better appearance
+        style = ttk.Style()
+        style.theme_use('clam')  # Modern theme
+        
+        # Custom button styles
+        style.configure('Primary.TButton', font=('Arial', 10, 'bold'))
+        style.configure('Success.TButton', foreground='#2e7d32')
+        style.configure('Warning.TButton', foreground='#d84315')
         
         # Bind keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.select_folder())
@@ -1636,7 +1703,7 @@ class FileJanitorApp:
         self._create_tooltip(self.browse_button, "Select a folder to organize (Ctrl+O)")
         
         self.folder_label = ttk.Label(main_frame, text="No folder selected", 
-                                     foreground="gray")
+                                     foreground="gray", font=('Arial', 9, 'italic'))
         self.folder_label.grid(row=1, column=1, sticky=(tk.W, tk.E))
         
         # Analysis results section
@@ -1657,9 +1724,29 @@ class FileJanitorApp:
         
         self.analysis_text = tk.Text(self.analysis_frame, wrap=tk.WORD, 
                                    yscrollcommand=analysis_scroll.set,
-                                   state=tk.DISABLED, height=8)
+                                   state=tk.DISABLED, height=8,
+                                   font=('Consolas', 9),
+                                   bg='#f5f5f5',
+                                   padx=10, pady=10)
         self.analysis_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         analysis_scroll.config(command=self.analysis_text.yview)
+        
+        # Configure text tags for color coding
+        self.analysis_text.tag_configure('header', font=('Arial', 11, 'bold'), foreground='#1976d2')
+        self.analysis_text.tag_configure('subheader', font=('Arial', 10, 'bold'), foreground='#424242')
+        self.analysis_text.tag_configure('highlight', foreground='#2e7d32', font=('Consolas', 9, 'bold'))
+        self.analysis_text.tag_configure('warning', foreground='#f57c00')
+        self.analysis_text.tag_configure('error', foreground='#d32f2f')
+        
+        # File filtering section (initially hidden)
+        self.filter_frame = ttk.LabelFrame(main_frame, text="Select Files to Organize", padding="10")
+        self.filter_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 10))
+        self.filter_frame.columnconfigure(0, weight=1)
+        self.filter_frame.grid_remove()  # Hidden until analysis complete
+        
+        # Filter options will be added dynamically
+        self.filter_buttons_frame = ttk.Frame(self.filter_frame)
+        self.filter_buttons_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
         
         # Organization plan section
         ttk.Label(main_frame, text="Organization Plan:", 
@@ -1679,21 +1766,34 @@ class FileJanitorApp:
         
         self.plan_text = tk.Text(self.plan_frame, wrap=tk.WORD, 
                                yscrollcommand=plan_scroll.set,
-                               state=tk.DISABLED, height=8)
+                               state=tk.DISABLED, height=8,
+                               font=('Consolas', 9),
+                               bg='#f5f5f5',
+                               padx=10, pady=10)
         self.plan_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         plan_scroll.config(command=self.plan_text.yview)
+        
+        # Configure text tags for color coding
+        self.plan_text.tag_configure('header', font=('Arial', 11, 'bold'), foreground='#1976d2')
+        self.plan_text.tag_configure('subheader', font=('Arial', 10, 'bold'), foreground='#424242')
+        self.plan_text.tag_configure('success', foreground='#2e7d32', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('warning', foreground='#f57c00', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('error', foreground='#d32f2f', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('folder', foreground='#1976d2', font=('Consolas', 9, 'bold'))
         
         # Action buttons
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=6, column=0, columnspan=2, pady=(10, 0))
         
-        self.analyze_button = ttk.Button(button_frame, text="Analyze Files (Ctrl+A / F5)", 
-                                       command=self.analyze_files, state=tk.DISABLED)
+        self.analyze_button = ttk.Button(button_frame, text="🔍 Analyze Files (Ctrl+A / F5)", 
+                                       command=self.analyze_files, state=tk.DISABLED,
+                                       style='Primary.TButton', width=30)
         self.analyze_button.grid(row=0, column=0, padx=(0, 10))
         self._create_tooltip(self.analyze_button, "Scan and analyze files in the selected folder (Ctrl+A or F5)")
         
-        self.execute_button = ttk.Button(button_frame, text="Execute Plan (Ctrl+E)", 
-                                       command=self.execute_plan, state=tk.DISABLED)
+        self.execute_button = ttk.Button(button_frame, text="⚡ Execute Plan (Ctrl+E)", 
+                                       command=self.execute_plan, state=tk.DISABLED,
+                                       style='Warning.TButton', width=30)
         self.execute_button.grid(row=0, column=1)
         self._create_tooltip(self.execute_button, "Execute the organization plan (Ctrl+E)\nWarning: This will move/rename files!")
         
@@ -1725,6 +1825,118 @@ class FileJanitorApp:
         """Create a tooltip for a widget"""
         ToolTip(widget, text)
     
+    def _insert_colored_text(self, text_widget, text, tag=None):
+        """
+        Insert text with optional color tag
+        
+        Args:
+            text_widget: Text widget to insert into
+            text: Text to insert
+            tag: Optional tag name for styling
+        """
+        if tag:
+            text_widget.insert(tk.END, text, tag)
+        else:
+            text_widget.insert(tk.END, text)
+    
+    def _display_filter_options(self):
+        """Display filtering options based on date suggestions and file counts"""
+        # Clear existing filter buttons
+        for widget in self.filter_buttons_frame.winfo_children():
+            widget.destroy()
+        
+        # Show the filter frame
+        self.filter_frame.grid()
+        
+        # Add instruction label
+        instruction_label = ttk.Label(
+            self.filter_buttons_frame,
+            text="Choose which files to organize:",
+            font=('Arial', 9, 'italic'),
+            foreground='#666666'
+        )
+        instruction_label.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10))
+        
+        # Add "All Files" option with emphasis
+        all_files_btn = ttk.Button(
+            self.filter_buttons_frame,
+            text=f"📁 All Files ({len(self.scanned_files)} files)",
+            command=lambda: self._select_file_filter(self.scanned_files, "All Files"),
+            style='Primary.TButton',
+            width=35
+        )
+        all_files_btn.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky=(tk.W, tk.E))
+        self._create_tooltip(all_files_btn, f"Organize all {len(self.scanned_files)} files\nMay be processed in batches if >100 files")
+        
+        # Add separator
+        separator = ttk.Separator(self.filter_buttons_frame, orient='horizontal')
+        separator.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        
+        # Add label for smart suggestions
+        if self.date_suggestions:
+            smart_label = ttk.Label(
+                self.filter_buttons_frame,
+                text="Smart Suggestions (by date):",
+                font=('Arial', 9, 'bold')
+            )
+            smart_label.grid(row=3, column=0, columnspan=3, sticky=tk.W, pady=(0, 5))
+        
+        # Add date-based filter options in a grid
+        for i, suggestion in enumerate(self.date_suggestions[:6]):  # Show top 6 suggestions
+            priority_icon = "🔥" if suggestion['priority'] == 'high' else "⭐" if suggestion['priority'] == 'medium' else "📋"
+            btn_text = f"{priority_icon} {suggestion['title']}\n({suggestion['file_count']} files)"
+            
+            btn = ttk.Button(
+                self.filter_buttons_frame,
+                text=btn_text,
+                command=lambda s=suggestion: self._select_file_filter(s['files'], s['title']),
+                width=28
+            )
+            
+            # Arrange in 2 columns
+            row = 4 + (i // 2)
+            col = i % 2
+            btn.grid(row=row, column=col, padx=5, pady=5, sticky=(tk.W, tk.E))
+            
+            tooltip_text = f"{suggestion['description']}\n"
+            if suggestion['priority'] == 'high':
+                tooltip_text += "✓ Recommended: Optimal size for AI analysis"
+            elif suggestion['file_count'] > 200:
+                tooltip_text += "⚠ Large batch - will be processed in multiple batches"
+            
+            self._create_tooltip(btn, tooltip_text)
+        
+        # Configure column weights for better layout
+        self.filter_buttons_frame.columnconfigure(0, weight=1)
+        self.filter_buttons_frame.columnconfigure(1, weight=1)
+    
+    def _select_file_filter(self, files: List[Dict], filter_name: str):
+        """
+        Handle file filter selection and start AI analysis
+        
+        Args:
+            files: List of file dictionaries to organize
+            filter_name: Name of the selected filter
+        """
+        if self.is_processing:
+            return
+        
+        self.filtered_files = files
+        self.status_var.set(f"✓ Selected: {filter_name} ({len(files)} files)")
+        
+        # Hide filter options
+        self.filter_frame.grid_remove()
+        
+        # Perform AI-based filename analysis if service is available
+        if self.ai_service and len(self.filtered_files) > 0:
+            self.status_var.set(f"🤖 Running AI analysis on {len(self.filtered_files)} files...")
+            self.root.update()
+            self.perform_ai_filename_analysis()
+        else:
+            # No AI service, use basic organization
+            self.status_var.set("⚠ No AI service - Using basic organization")
+            self._fallback_to_basic_organization(self.filtered_files, "AI service not available")
+    
     def _update_button_states(self, analyzing=False, executing=False):
         """
         Update button states based on current operation
@@ -1752,7 +1964,7 @@ class FileJanitorApp:
         folder = filedialog.askdirectory(title="Select folder to organize")
         if folder:
             self.selected_folder = folder
-            self.folder_label.config(text=folder, foreground="black")
+            self.folder_label.config(text=folder, foreground="#1976d2", font=('Arial', 9, 'bold'))
             self._update_button_states()
             self.status_var.set(f"✓ Folder selected: {os.path.basename(folder)}")
             
@@ -1769,7 +1981,14 @@ class FileJanitorApp:
         self.plan_text.delete(1.0, tk.END)
         self.plan_text.config(state=tk.DISABLED)
         
+        # Hide and clear filter frame
+        self.filter_frame.grid_remove()
+        for widget in self.filter_buttons_frame.winfo_children():
+            widget.destroy()
+        
         self.current_plan = None
+        self.filtered_files = []
+        self.date_suggestions = []
         self._update_button_states()
     
     def analyze_files(self):
@@ -1804,10 +2023,10 @@ class FileJanitorApp:
             file_type_stats = self.scanner.get_file_type_stats(self.scanned_files)
             
             # Get date-based filtering suggestions
-            date_suggestions = self.scanner.get_date_based_suggestions(self.scanned_files)
+            self.date_suggestions = self.scanner.get_date_based_suggestions(self.scanned_files)
             
             # Display results
-            self.display_analysis_results(file_type_stats, date_suggestions)
+            self.display_analysis_results(file_type_stats, self.date_suggestions)
             
             # Check for errors
             errors = self.scanner.get_scan_errors()
@@ -1815,13 +2034,10 @@ class FileJanitorApp:
                 self.display_scan_errors(errors)
                 self.status_var.set(f"⚠ Analysis complete with {len(errors)} warning(s)")
             
-            # Perform AI-based filename analysis if service is available
-            if self.ai_service and len(self.scanned_files) > 0:
-                self.status_var.set("🤖 Running AI analysis on filenames...")
-                self.root.update()
-                self.perform_ai_filename_analysis()
+            # Show filtering options
+            self._display_filter_options()
             
-            self.status_var.set(f"✓ Analysis complete - Found {len(self.scanned_files)} files")
+            self.status_var.set(f"✓ Analysis complete - Found {len(self.scanned_files)} files - Select files to organize")
             
         except Exception as e:
             messagebox.showerror("Scan Error", f"An error occurred during scanning:\n\n{str(e)}")
@@ -1833,42 +2049,176 @@ class FileJanitorApp:
     def perform_ai_filename_analysis(self):
         """Perform AI-based filename clustering analysis"""
         try:
-            # Extract just the filenames
-            filenames = [file_info['name'] for file_info in self.scanned_files]
+            # Use filtered files if available, otherwise use all scanned files
+            files_to_process = self.filtered_files if self.filtered_files else self.scanned_files
             
-            # Limit to first 100 files for initial analysis
-            files_to_analyze = self.scanned_files[:100] if len(self.scanned_files) > 100 else self.scanned_files
-            filenames_to_analyze = [f['name'] for f in files_to_analyze]
-            
-            if len(self.scanned_files) > 100:
-                self.status_var.set(f"🤖 Analyzing first 100 of {len(self.scanned_files)} files...")
+            # Handle large batches by subdividing
+            if len(files_to_process) > 100:
+                # Process in batches of 100
+                self.status_var.set(f"🤖 Processing {len(files_to_process)} files in batches...")
                 self.root.update()
-            
-            # Call AI service
-            result = self.ai_service.analyze_filenames(filenames_to_analyze)
-            
-            # Create organization plan based on AI analysis
-            if not result.get('error') and result.get('clusters'):
+                
+                all_clusters = []
+                batch_size = 100
+                num_batches = (len(files_to_process) + batch_size - 1) // batch_size
+                
+                for batch_num in range(num_batches):
+                    start_idx = batch_num * batch_size
+                    end_idx = min(start_idx + batch_size, len(files_to_process))
+                    batch_files = files_to_process[start_idx:end_idx]
+                    
+                    self.status_var.set(f"🤖 Analyzing batch {batch_num + 1}/{num_batches} ({len(batch_files)} files)...")
+                    self.root.update()
+                    
+                    filenames_to_analyze = [f['name'] for f in batch_files]
+                    result = self.ai_service.analyze_filenames(filenames_to_analyze)
+                    
+                    if not result.get('error') and result.get('clusters'):
+                        # Add batch prefix to folder names to avoid conflicts
+                        for cluster in result['clusters']:
+                            cluster['suggested_folder'] = f"batch{batch_num + 1}_{cluster.get('suggested_folder', 'files')}"
+                        all_clusters.extend(result['clusters'])
+                    else:
+                        # If a batch fails, fall back to basic organization for that batch
+                        self.status_var.set(f"⚠ Batch {batch_num + 1} failed - Using basic organization")
+                        basic_result = self._create_basic_clusters(batch_files, batch_prefix=f"batch{batch_num + 1}_")
+                        all_clusters.extend(basic_result['clusters'])
+                
+                # Create combined result
+                combined_result = {
+                    'clusters': all_clusters,
+                    'total_files': len(files_to_process),
+                    'error': None
+                }
+                
                 self.status_var.set("📋 Creating organization plan...")
                 self.root.update()
                 
-                self.current_plan = self.planner.create_plan(files_to_analyze, result)
-                
-                # Display the plan
+                self.current_plan = self.planner.create_plan(files_to_process, combined_result)
                 self.display_organization_plan(self.current_plan)
-                
-                # Update button states
                 self._update_button_states()
+                
             else:
-                # Display clustering results without plan
-                self.display_ai_clusters(result)
-                self.status_var.set("⚠ AI analysis completed with errors")
+                # Process normally for smaller batches
+                filenames_to_analyze = [f['name'] for f in files_to_process]
+                
+                self.status_var.set(f"🤖 Analyzing {len(files_to_process)} files...")
+                self.root.update()
+                
+                # Call AI service
+                result = self.ai_service.analyze_filenames(filenames_to_analyze)
+                
+                # Create organization plan based on AI analysis
+                if not result.get('error') and result.get('clusters'):
+                    self.status_var.set("📋 Creating organization plan...")
+                    self.root.update()
+                    
+                    self.current_plan = self.planner.create_plan(files_to_process, result)
+                    
+                    # Display the plan
+                    self.display_organization_plan(self.current_plan)
+                    
+                    # Update button states
+                    self._update_button_states()
+                else:
+                    # AI analysis failed - fall back to basic organization
+                    self.status_var.set("⚠ AI analysis failed - Using basic organization")
+                    self._fallback_to_basic_organization(files_to_process, result.get('error', 'Unknown error'))
             
         except Exception as e:
+            # Handle unexpected errors with fallback
+            error_msg = f"AI Analysis Error: {str(e)}"
+            self.status_var.set("⚠ AI analysis failed - Using basic organization")
+            files_to_process = self.filtered_files if self.filtered_files else self.scanned_files
+            self._fallback_to_basic_organization(files_to_process, error_msg)
+    
+    def _create_basic_clusters(self, files: List[Dict], batch_prefix: str = "") -> Dict:
+        """
+        Create basic file type clusters
+        
+        Args:
+            files: List of file information dictionaries
+            batch_prefix: Optional prefix for folder names
+            
+        Returns:
+            Dictionary with cluster information
+        """
+        basic_clusters = []
+        files_by_type = defaultdict(list)
+        
+        for file_info in files:
+            file_type = file_info.get('type', 'other')
+            files_by_type[file_type].append(file_info['name'])
+        
+        # Convert to cluster format
+        type_names = {
+            'document': 'Documents',
+            'image': 'Images',
+            'video': 'Videos',
+            'other': 'Other Files'
+        }
+        
+        for file_type, file_list in files_by_type.items():
+            if file_list:
+                basic_clusters.append({
+                    'category': type_names.get(file_type, 'Other Files'),
+                    'files': file_list,
+                    'description': f'Files organized by type: {file_type}',
+                    'suggested_folder': f"{batch_prefix}{file_type}"
+                })
+        
+        return {
+            'clusters': basic_clusters,
+            'total_files': len(files),
+            'error': None
+        }
+    
+    def _fallback_to_basic_organization(self, files: List[Dict], error_message: str):
+        """
+        Fallback to basic file type organization when AI fails
+        
+        Args:
+            files: List of file information dictionaries
+            error_message: Error message from AI service
+        """
+        try:
+            # Create basic organization result
+            basic_result = self._create_basic_clusters(files)
+            
+            # Create plan with basic organization
+            self.current_plan = self.planner.create_plan(files, basic_result)
+            
+            # Display the plan with warning
             self.plan_text.config(state=tk.NORMAL)
-            self.plan_text.insert(tk.END, f"\n⚠️ AI Analysis Error: {str(e)}\n")
+            self.plan_text.delete(1.0, tk.END)
+            
+            self.plan_text.insert(tk.END, "⚠️ BASIC ORGANIZATION MODE\n")
+            self.plan_text.insert(tk.END, "="*60 + "\n\n")
+            self.plan_text.insert(tk.END, f"AI Analysis Error: {error_message}\n\n")
+            self.plan_text.insert(tk.END, "Falling back to basic file type organization.\n")
+            self.plan_text.insert(tk.END, "Files will be organized by type (documents, images, videos, other).\n\n")
+            self.plan_text.insert(tk.END, "="*60 + "\n\n")
+            
             self.plan_text.config(state=tk.DISABLED)
-            self.status_var.set("❌ AI analysis failed")
+            
+            # Display the basic plan
+            self.display_organization_plan(self.current_plan)
+            
+            # Update button states
+            self._update_button_states()
+            
+        except Exception as e:
+            # If even basic organization fails, show error
+            self.plan_text.config(state=tk.NORMAL)
+            self.plan_text.delete(1.0, tk.END)
+            self.plan_text.insert(tk.END, f"❌ ORGANIZATION FAILED\n")
+            self.plan_text.insert(tk.END, "="*60 + "\n\n")
+            self.plan_text.insert(tk.END, f"AI Error: {error_message}\n")
+            self.plan_text.insert(tk.END, f"Fallback Error: {str(e)}\n\n")
+            self.plan_text.insert(tk.END, "Unable to create organization plan.\n")
+            self.plan_text.insert(tk.END, "Please check your files and try again.\n")
+            self.plan_text.config(state=tk.DISABLED)
+            self.status_var.set("❌ Organization failed")
     
     def perform_content_analysis(self, file_info: Dict) -> Dict:
         """
