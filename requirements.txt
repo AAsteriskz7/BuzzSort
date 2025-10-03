@@ -1,8 +1,11 @@
 # Intelligent File Janitor Dependencies
 
-# AI Services (will be added in task 3)
-# google-generativeai>=0.3.0
-# anthropic>=0.7.0
+# AI Services
+google-generativeai>=0.8.0
+anthropic>=0.39.0
+
+# Image Processing
+Pillow>=10.0.0
 
 # GUI Framework (built-in with Python)
 # tkinter - included with Python standard library
@@ -10,8 +13,3 @@
 # File Operations (built-in with Python)
 # pathlib - included with Python standard library
 # shutil - included with Python standard library
-
-# Environment Management
-# python-dotenv>=1.0.0  # Will be added when implementing API key management
-
-# Note: This file will be updated as dependencies are added in subsequent tasks

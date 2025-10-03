@@ -1802,8 +1802,11 @@ class FileJanitorApp:
         """Set up the basic Tkinter GUI framework"""
         # Configure main window
         self.root.title("🧹 Intelligent File Janitor")
-        self.root.geometry("900x700")
-        self.root.minsize(700, 500)
+        self.root.geometry("950x750")
+        self.root.minsize(750, 550)
+        
+        # Set window background color
+        self.root.configure(bg='#f0f0f0')
         
         # Create menu bar
         menubar = tk.Menu(self.root)
@@ -1831,10 +1834,42 @@ class FileJanitorApp:
         style = ttk.Style()
         style.theme_use('clam')  # Modern theme
         
-        # Custom button styles
-        style.configure('Primary.TButton', font=('Arial', 10, 'bold'))
-        style.configure('Success.TButton', foreground='#2e7d32')
-        style.configure('Warning.TButton', foreground='#d84315')
+        # Color scheme - Modern blue/green palette
+        PRIMARY_COLOR = '#2196F3'      # Blue
+        SUCCESS_COLOR = '#4CAF50'      # Green
+        WARNING_COLOR = '#FF9800'      # Orange
+        DANGER_COLOR = '#F44336'       # Red
+        BG_COLOR = '#FFFFFF'           # White
+        TEXT_COLOR = '#212121'         # Dark gray
+        LIGHT_BG = '#F5F5F5'          # Light gray
+        
+        # Custom button styles with colors
+        style.configure('Primary.TButton', 
+                       font=('Segoe UI', 10, 'bold'),
+                       foreground=PRIMARY_COLOR,
+                       padding=8)
+        style.map('Primary.TButton',
+                 background=[('active', '#E3F2FD')])
+        
+        style.configure('Success.TButton', 
+                       font=('Segoe UI', 10, 'bold'),
+                       foreground=SUCCESS_COLOR,
+                       padding=8)
+        style.map('Success.TButton',
+                 background=[('active', '#E8F5E9')])
+        
+        style.configure('Warning.TButton', 
+                       font=('Segoe UI', 10, 'bold'),
+                       foreground=WARNING_COLOR,
+                       padding=8)
+        style.map('Warning.TButton',
+                 background=[('active', '#FFF3E0')])
+        
+        # Frame styles
+        style.configure('Card.TFrame', background=BG_COLOR, relief='raised', borderwidth=1)
+        style.configure('TLabel', background='#f0f0f0', foreground=TEXT_COLOR)
+        style.configure('TLabelframe', background='#f0f0f0', foreground=TEXT_COLOR)
+        style.configure('TLabelframe.Label', font=('Segoe UI', 10, 'bold'))
         
         # Bind keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.select_folder())
@@ -1844,8 +1879,8 @@ class FileJanitorApp:
         self.root.bind('<Control-h>', lambda e: self.show_operation_history())
         self.root.bind('<Control-l>', lambda e: self.open_log_file())
         
-        # Create main frame
-        main_frame = ttk.Frame(self.root, padding="10")
+        # Create main frame with padding
+        main_frame = ttk.Frame(self.root, padding="15")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid weights for responsive layout
@@ -1855,52 +1890,69 @@ class FileJanitorApp:
         main_frame.rowconfigure(2, weight=1)
         main_frame.rowconfigure(4, weight=1)
         
-        # Folder selection section
-        ttk.Label(main_frame, text="Select Folder to Organize:", 
-                 font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=2, 
-                                                  sticky=tk.W, pady=(0, 10))
+        # Header section with icon and title
+        header_frame = ttk.Frame(main_frame)
+        header_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         
-        # Folder selection button and display with tooltip
-        self.browse_button = ttk.Button(main_frame, text="Browse Folder (Ctrl+O)", 
-                  command=self.select_folder)
-        self.browse_button.grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(header_frame, text="🧹", font=('Arial', 24)).grid(row=0, column=0, padx=(0, 10))
+        ttk.Label(header_frame, text="Intelligent File Janitor", 
+                 font=('Segoe UI', 16, 'bold'), foreground='#2196F3').grid(row=0, column=1, sticky=tk.W)
+        ttk.Label(header_frame, text="AI-powered file organization", 
+                 font=('Segoe UI', 9), foreground='#757575').grid(row=1, column=1, sticky=tk.W)
+        
+        # Separator
+        ttk.Separator(main_frame, orient='horizontal').grid(row=1, column=0, columnspan=2, 
+                                                            sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        # Folder selection section in a card-like frame
+        folder_card = ttk.LabelFrame(main_frame, text="📁 Select Folder", padding="15")
+        folder_card.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        folder_card.columnconfigure(1, weight=1)
+        
+        # Folder selection button with icon
+        self.browse_button = ttk.Button(folder_card, text="📂 Browse Folder", 
+                  command=self.select_folder, style='Primary.TButton')
+        self.browse_button.grid(row=0, column=0, sticky=tk.W, padx=(0, 15))
         self._create_tooltip(self.browse_button, "Select a folder to organize (Ctrl+O)")
         
-        self.folder_label = ttk.Label(main_frame, text="No folder selected", 
-                                     foreground="gray", font=('Arial', 9, 'italic'))
-        self.folder_label.grid(row=1, column=1, sticky=(tk.W, tk.E))
+        self.folder_label = ttk.Label(folder_card, text="No folder selected", 
+                                     foreground="#9E9E9E", font=('Segoe UI', 9, 'italic'))
+        self.folder_label.grid(row=0, column=1, sticky=(tk.W, tk.E))
         
-        # Analysis results section
-        ttk.Label(main_frame, text="Analysis Results:", 
-                 font=('Arial', 12, 'bold')).grid(row=2, column=0, columnspan=2, 
-                                                  sticky=(tk.W, tk.N), pady=(20, 5))
+        # Analysis results section in a card
+        analysis_card = ttk.LabelFrame(main_frame, text="🔍 Analysis Results", padding="10")
+        analysis_card.grid(row=3, column=0, columnspan=2, 
+                          sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 15))
+        analysis_card.columnconfigure(0, weight=1)
+        analysis_card.rowconfigure(0, weight=1)
         
-        # Analysis results display area
-        self.analysis_frame = ttk.Frame(main_frame, relief="sunken", borderwidth=1)
-        self.analysis_frame.grid(row=3, column=0, columnspan=2, 
-                               sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 20))
-        self.analysis_frame.columnconfigure(0, weight=1)
-        self.analysis_frame.rowconfigure(0, weight=1)
-        
-        # Scrollable text widget for analysis results
-        analysis_scroll = ttk.Scrollbar(self.analysis_frame)
+        # Scrollable text widget for analysis results with modern styling
+        analysis_scroll = ttk.Scrollbar(analysis_card)
         analysis_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
-        self.analysis_text = tk.Text(self.analysis_frame, wrap=tk.WORD, 
+        self.analysis_text = tk.Text(analysis_card, wrap=tk.WORD, 
                                    yscrollcommand=analysis_scroll.set,
                                    state=tk.DISABLED, height=8,
                                    font=('Consolas', 9),
-                                   bg='#f5f5f5',
-                                   padx=10, pady=10)
+                                   bg='#FAFAFA',
+                                   fg='#212121',
+                                   relief='flat',
+                                   padx=15, pady=15,
+                                   borderwidth=0,
+                                   highlightthickness=1,
+                                   highlightbackground='#E0E0E0',
+                                   highlightcolor='#2196F3')
         self.analysis_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         analysis_scroll.config(command=self.analysis_text.yview)
         
-        # Configure text tags for color coding
-        self.analysis_text.tag_configure('header', font=('Arial', 11, 'bold'), foreground='#1976d2')
-        self.analysis_text.tag_configure('subheader', font=('Arial', 10, 'bold'), foreground='#424242')
-        self.analysis_text.tag_configure('highlight', foreground='#2e7d32', font=('Consolas', 9, 'bold'))
-        self.analysis_text.tag_configure('warning', foreground='#f57c00')
-        self.analysis_text.tag_configure('error', foreground='#d32f2f')
+        # Configure text tags with modern color scheme
+        self.analysis_text.tag_configure('header', font=('Segoe UI', 11, 'bold'), foreground='#2196F3')
+        self.analysis_text.tag_configure('subheader', font=('Segoe UI', 10, 'bold'), foreground='#424242')
+        self.analysis_text.tag_configure('highlight', foreground='#4CAF50', font=('Consolas', 9, 'bold'))
+        self.analysis_text.tag_configure('warning', foreground='#FF9800', font=('Consolas', 9, 'bold'))
+        self.analysis_text.tag_configure('error', foreground='#F44336', font=('Consolas', 9, 'bold'))
+        self.analysis_text.tag_configure('info', foreground='#2196F3')
+        self.analysis_text.tag_configure('muted', foreground='#9E9E9E')
         
         # File filtering section (initially hidden)
         self.filter_frame = ttk.LabelFrame(main_frame, text="Select Files to Organize", padding="10")
@@ -1912,54 +1964,57 @@ class FileJanitorApp:
         self.filter_buttons_frame = ttk.Frame(self.filter_frame)
         self.filter_buttons_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
         
-        # Organization plan section
-        ttk.Label(main_frame, text="Organization Plan:", 
-                 font=('Arial', 12, 'bold')).grid(row=4, column=0, columnspan=2, 
-                                                  sticky=(tk.W, tk.N), pady=(0, 5))
+        # Organization plan section in a card
+        plan_card = ttk.LabelFrame(main_frame, text="📋 Organization Plan", padding="10")
+        plan_card.grid(row=5, column=0, columnspan=2, 
+                      sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 15))
+        plan_card.columnconfigure(0, weight=1)
+        plan_card.rowconfigure(0, weight=1)
         
-        # Organization plan display area
-        self.plan_frame = ttk.Frame(main_frame, relief="sunken", borderwidth=1)
-        self.plan_frame.grid(row=5, column=0, columnspan=2, 
-                           sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 20))
-        self.plan_frame.columnconfigure(0, weight=1)
-        self.plan_frame.rowconfigure(0, weight=1)
-        
-        # Scrollable text widget for organization plan
-        plan_scroll = ttk.Scrollbar(self.plan_frame)
+        # Scrollable text widget for organization plan with modern styling
+        plan_scroll = ttk.Scrollbar(plan_card)
         plan_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
-        self.plan_text = tk.Text(self.plan_frame, wrap=tk.WORD, 
+        self.plan_text = tk.Text(plan_card, wrap=tk.WORD, 
                                yscrollcommand=plan_scroll.set,
                                state=tk.DISABLED, height=8,
                                font=('Consolas', 9),
-                               bg='#f5f5f5',
-                               padx=10, pady=10)
+                               bg='#FAFAFA',
+                               fg='#212121',
+                               relief='flat',
+                               padx=15, pady=15,
+                               borderwidth=0,
+                               highlightthickness=1,
+                               highlightbackground='#E0E0E0',
+                               highlightcolor='#FF9800')
         self.plan_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         plan_scroll.config(command=self.plan_text.yview)
         
-        # Configure text tags for color coding
-        self.plan_text.tag_configure('header', font=('Arial', 11, 'bold'), foreground='#1976d2')
-        self.plan_text.tag_configure('subheader', font=('Arial', 10, 'bold'), foreground='#424242')
-        self.plan_text.tag_configure('success', foreground='#2e7d32', font=('Consolas', 9, 'bold'))
-        self.plan_text.tag_configure('warning', foreground='#f57c00', font=('Consolas', 9, 'bold'))
-        self.plan_text.tag_configure('error', foreground='#d32f2f', font=('Consolas', 9, 'bold'))
-        self.plan_text.tag_configure('folder', foreground='#1976d2', font=('Consolas', 9, 'bold'))
+        # Configure text tags with modern color scheme
+        self.plan_text.tag_configure('header', font=('Segoe UI', 11, 'bold'), foreground='#FF9800')
+        self.plan_text.tag_configure('subheader', font=('Segoe UI', 10, 'bold'), foreground='#424242')
+        self.plan_text.tag_configure('success', foreground='#4CAF50', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('warning', foreground='#FF9800', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('error', foreground='#F44336', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('folder', foreground='#2196F3', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('file', foreground='#757575')
+        self.plan_text.tag_configure('arrow', foreground='#9E9E9E')
         
-        # Action buttons
+        # Action buttons with better spacing and styling
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=6, column=0, columnspan=2, pady=(10, 0))
+        button_frame.grid(row=6, column=0, columnspan=2, pady=(5, 10))
         
-        self.analyze_button = ttk.Button(button_frame, text="🔍 Analyze Files (Ctrl+A / F5)", 
+        self.analyze_button = ttk.Button(button_frame, text="🔍 Analyze Files", 
                                        command=self.analyze_files, state=tk.DISABLED,
-                                       style='Primary.TButton', width=30)
-        self.analyze_button.grid(row=0, column=0, padx=(0, 10))
-        self._create_tooltip(self.analyze_button, "Scan and analyze files in the selected folder (Ctrl+A or F5)")
+                                       style='Primary.TButton', width=25)
+        self.analyze_button.grid(row=0, column=0, padx=(0, 15))
+        self._create_tooltip(self.analyze_button, "Scan and analyze files in the selected folder\nShortcut: Ctrl+A or F5")
         
-        self.execute_button = ttk.Button(button_frame, text="⚡ Execute Plan (Ctrl+E)", 
+        self.execute_button = ttk.Button(button_frame, text="⚡ Execute Plan", 
                                        command=self.execute_plan, state=tk.DISABLED,
-                                       style='Warning.TButton', width=30)
+                                       style='Warning.TButton', width=25)
         self.execute_button.grid(row=0, column=1)
-        self._create_tooltip(self.execute_button, "Execute the organization plan (Ctrl+E)\nWarning: This will move/rename files!")
+        self._create_tooltip(self.execute_button, "Execute the organization plan\nShortcut: Ctrl+E\n⚠️ Warning: This will move/rename files!")
         
         # Progress bar (initially hidden)
         self.progress_frame = ttk.Frame(main_frame)
