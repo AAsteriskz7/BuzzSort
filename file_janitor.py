@@ -177,9 +177,9 @@ class GeminiService(AIServiceInterface):
             # Configure the API key
             genai.configure(api_key=self.api_key)
             
-            # Initialize text model (Gemini Pro)
+            # Initialize text model (Gemini 2.5 Flash)
             self.model = genai.GenerativeModel(
-                'gemini-1.5-flash',
+                'gemini-2.0-flash-lite',
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -188,9 +188,9 @@ class GeminiService(AIServiceInterface):
                 }
             )
             
-            # Initialize vision model (Gemini Pro Vision)
+            # Initialize vision model (Gemini 2.5 Flash)
             self.vision_model = genai.GenerativeModel(
-                'gemini-1.5-flash',
+                'gemini-2.0-flash-lite',
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -1224,7 +1224,7 @@ class PlanExecutor:
         self.execution_log = []
         self.errors = []
     
-    def execute_plan(self, plan: Dict, base_path: str, dry_run: bool = True) -> Dict:
+    def execute_plan(self, plan: Dict, base_path: str, dry_run: bool = True, progress_callback=None) -> Dict:
         """
         Execute the organization plan with optional dry-run mode
         
@@ -1232,12 +1232,14 @@ class PlanExecutor:
             plan: Organization plan dictionary from OrganizationPlanner
             base_path: Base directory path where operations will be performed
             dry_run: If True, simulate operations without making changes
+            progress_callback: Optional callback function(current, total) for progress updates
             
         Returns:
             Dictionary with execution results
         """
         self.execution_log = []
         self.errors = []
+        self.progress_callback = progress_callback
         
         try:
             if not plan:
@@ -1254,9 +1256,15 @@ class PlanExecutor:
             
             # Step 1: Create folders
             folders_created = 0
+            total_operations = len(folders_to_create) + len(file_operations)
+            current_operation = 0
+            
             for folder in folders_to_create:
                 if self.create_folder(base_path, folder, dry_run):
                     folders_created += 1
+                current_operation += 1
+                if self.progress_callback:
+                    self.progress_callback(current_operation, total_operations)
             
             # Step 2: Execute file operations
             operations_completed = 0
@@ -1268,6 +1276,9 @@ class PlanExecutor:
                     operations_completed += 1
                 else:
                     operations_failed += 1
+                current_operation += 1
+                if self.progress_callback:
+                    self.progress_callback(current_operation, total_operations)
             
             # Generate result summary
             result = {
@@ -1327,12 +1338,17 @@ class PlanExecutor:
                 return True
                 
         except PermissionError as e:
-            error_msg = f"Permission denied creating folder '{folder_name}': {str(e)}"
+            error_msg = f"Permission denied creating folder '{folder_name}'. Please check folder permissions."
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+        except OSError as e:
+            error_msg = f"System error creating folder '{folder_name}': Invalid path or disk full"
             self.errors.append(error_msg)
             self.execution_log.append(f"[ERROR] {error_msg}")
             return False
         except Exception as e:
-            error_msg = f"Failed to create folder '{folder_name}': {str(e)}"
+            error_msg = f"Unexpected error creating folder '{folder_name}': {str(e)}"
             self.errors.append(error_msg)
             self.execution_log.append(f"[ERROR] {error_msg}")
             return False
@@ -1355,14 +1371,14 @@ class PlanExecutor:
             
             # Validate source exists
             if not source.exists():
-                error_msg = f"Source file does not exist: {source_path}"
+                error_msg = f"Source file not found: {source.name}"
                 self.errors.append(error_msg)
                 self.execution_log.append(f"[ERROR] {error_msg}")
                 return False
             
             # Check if destination already exists
             if destination.exists():
-                error_msg = f"Destination file already exists: {destination_path}"
+                error_msg = f"Destination already exists: {destination.name}"
                 self.errors.append(error_msg)
                 self.execution_log.append(f"[ERROR] {error_msg}")
                 return False
@@ -1376,18 +1392,25 @@ class PlanExecutor:
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 
                 # Actually move the file
-                import shutil
                 shutil.move(str(source), str(destination))
                 self.execution_log.append(f"Moved: {source.name} -> {destination}")
                 return True
                 
-        except PermissionError as e:
-            error_msg = f"Permission denied moving file '{source_path}': {str(e)}"
+        except PermissionError:
+            error_msg = f"Permission denied: Cannot move '{source.name}'. Check file permissions."
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+        except OSError as e:
+            if "cross-device" in str(e).lower():
+                error_msg = f"Cannot move '{source.name}' across different drives. Try copying instead."
+            else:
+                error_msg = f"System error moving '{source.name}': Disk may be full or path invalid"
             self.errors.append(error_msg)
             self.execution_log.append(f"[ERROR] {error_msg}")
             return False
         except Exception as e:
-            error_msg = f"Failed to move file '{source_path}': {str(e)}"
+            error_msg = f"Unexpected error moving '{source.name}': {str(e)}"
             self.errors.append(error_msg)
             self.execution_log.append(f"[ERROR] {error_msg}")
             return False
@@ -1410,14 +1433,14 @@ class PlanExecutor:
             
             # Validate source exists
             if not source.exists():
-                error_msg = f"Source file does not exist: {file_path}"
+                error_msg = f"Source file not found: {source.name}"
                 self.errors.append(error_msg)
                 self.execution_log.append(f"[ERROR] {error_msg}")
                 return False
             
             # Check if destination already exists
             if destination.exists() and destination != source:
-                error_msg = f"File with new name already exists: {new_name}"
+                error_msg = f"File already exists with name: {new_name}"
                 self.errors.append(error_msg)
                 self.execution_log.append(f"[ERROR] {error_msg}")
                 return False
@@ -1432,13 +1455,18 @@ class PlanExecutor:
                 self.execution_log.append(f"Renamed: {source.name} -> {new_name}")
                 return True
                 
-        except PermissionError as e:
-            error_msg = f"Permission denied renaming file '{file_path}': {str(e)}"
+        except PermissionError:
+            error_msg = f"Permission denied: Cannot rename '{source.name}'. File may be in use."
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+        except OSError as e:
+            error_msg = f"System error renaming '{source.name}': Invalid filename or disk error"
             self.errors.append(error_msg)
             self.execution_log.append(f"[ERROR] {error_msg}")
             return False
         except Exception as e:
-            error_msg = f"Failed to rename file '{file_path}': {str(e)}"
+            error_msg = f"Unexpected error renaming '{source.name}': {str(e)}"
             self.errors.append(error_msg)
             self.execution_log.append(f"[ERROR] {error_msg}")
             return False
@@ -1513,6 +1541,41 @@ class PlanExecutor:
         return self.errors.copy()
 
 
+class ToolTip:
+    """Simple tooltip class for Tkinter widgets"""
+    
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+        self.widget.bind("<Enter>", self.show_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+    
+    def show_tooltip(self, event=None):
+        """Display the tooltip"""
+        if self.tooltip_window or not self.text:
+            return
+        
+        x, y, _, _ = self.widget.bbox("insert") if hasattr(self.widget, 'bbox') else (0, 0, 0, 0)
+        x += self.widget.winfo_rootx() + 25
+        y += self.widget.winfo_rooty() + 25
+        
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                        background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+                        font=("Arial", 9))
+        label.pack(ipadx=5, ipady=3)
+    
+    def hide_tooltip(self, event=None):
+        """Hide the tooltip"""
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
+
 class FileJanitorApp:
     """Main application class for the Intelligent File Janitor"""
     
@@ -1524,6 +1587,7 @@ class FileJanitorApp:
         self.executor = PlanExecutor()
         self.scanned_files = []
         self.current_plan = None
+        self.is_processing = False  # Track if operation is in progress
         
         # Load AI configuration
         self.config = AIConfig.load_config()
@@ -1543,6 +1607,12 @@ class FileJanitorApp:
         self.root.geometry("800x600")
         self.root.minsize(600, 400)
         
+        # Bind keyboard shortcuts
+        self.root.bind('<Control-o>', lambda e: self.select_folder())
+        self.root.bind('<Control-a>', lambda e: self.analyze_files() if self.analyze_button['state'] == tk.NORMAL else None)
+        self.root.bind('<Control-e>', lambda e: self.execute_plan() if self.execute_button['state'] == tk.NORMAL else None)
+        self.root.bind('<F5>', lambda e: self.analyze_files() if self.analyze_button['state'] == tk.NORMAL else None)
+        
         # Create main frame
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -1559,10 +1629,11 @@ class FileJanitorApp:
                  font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=2, 
                                                   sticky=tk.W, pady=(0, 10))
         
-        # Folder selection button and display
-        ttk.Button(main_frame, text="Browse Folder", 
-                  command=self.select_folder).grid(row=1, column=0, 
-                                                  sticky=tk.W, padx=(0, 10))
+        # Folder selection button and display with tooltip
+        self.browse_button = ttk.Button(main_frame, text="Browse Folder (Ctrl+O)", 
+                  command=self.select_folder)
+        self.browse_button.grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
+        self._create_tooltip(self.browse_button, "Select a folder to organize (Ctrl+O)")
         
         self.folder_label = ttk.Label(main_frame, text="No folder selected", 
                                      foreground="gray")
@@ -1616,13 +1687,15 @@ class FileJanitorApp:
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=6, column=0, columnspan=2, pady=(10, 0))
         
-        self.analyze_button = ttk.Button(button_frame, text="Analyze Files", 
+        self.analyze_button = ttk.Button(button_frame, text="Analyze Files (Ctrl+A / F5)", 
                                        command=self.analyze_files, state=tk.DISABLED)
         self.analyze_button.grid(row=0, column=0, padx=(0, 10))
+        self._create_tooltip(self.analyze_button, "Scan and analyze files in the selected folder (Ctrl+A or F5)")
         
-        self.execute_button = ttk.Button(button_frame, text="Execute Plan", 
+        self.execute_button = ttk.Button(button_frame, text="Execute Plan (Ctrl+E)", 
                                        command=self.execute_plan, state=tk.DISABLED)
         self.execute_button.grid(row=0, column=1)
+        self._create_tooltip(self.execute_button, "Execute the organization plan (Ctrl+E)\nWarning: This will move/rename files!")
         
         # Progress bar (initially hidden)
         self.progress_frame = ttk.Frame(main_frame)
@@ -1648,14 +1721,40 @@ class FileJanitorApp:
         status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), 
                        pady=(10, 0))
     
+    def _create_tooltip(self, widget, text):
+        """Create a tooltip for a widget"""
+        ToolTip(widget, text)
+    
+    def _update_button_states(self, analyzing=False, executing=False):
+        """
+        Update button states based on current operation
+        
+        Args:
+            analyzing: True if analysis is in progress
+            executing: True if execution is in progress
+        """
+        if analyzing or executing:
+            self.browse_button.config(state=tk.DISABLED)
+            self.analyze_button.config(state=tk.DISABLED)
+            self.execute_button.config(state=tk.DISABLED)
+            self.is_processing = True
+        else:
+            self.browse_button.config(state=tk.NORMAL)
+            self.analyze_button.config(state=tk.NORMAL if self.selected_folder else tk.DISABLED)
+            self.execute_button.config(state=tk.NORMAL if self.current_plan and not self.current_plan.get('error') else tk.DISABLED)
+            self.is_processing = False
+    
     def select_folder(self):
         """Handle folder selection"""
+        if self.is_processing:
+            return
+        
         folder = filedialog.askdirectory(title="Select folder to organize")
         if folder:
             self.selected_folder = folder
             self.folder_label.config(text=folder, foreground="black")
-            self.analyze_button.config(state=tk.NORMAL)
-            self.status_var.set(f"Folder selected: {os.path.basename(folder)}")
+            self._update_button_states()
+            self.status_var.set(f"✓ Folder selected: {os.path.basename(folder)}")
             
             # Clear previous results
             self.clear_display_areas()
@@ -1670,7 +1769,8 @@ class FileJanitorApp:
         self.plan_text.delete(1.0, tk.END)
         self.plan_text.config(state=tk.DISABLED)
         
-        self.execute_button.config(state=tk.DISABLED)
+        self.current_plan = None
+        self._update_button_states()
     
     def analyze_files(self):
         """Scan and analyze files in the selected directory"""
@@ -1678,12 +1778,27 @@ class FileJanitorApp:
             messagebox.showerror("Error", "Please select a folder first")
             return
         
-        self.status_var.set("Scanning files...")
+        if self.is_processing:
+            return
+        
+        # Update button states to disabled during analysis
+        self._update_button_states(analyzing=True)
+        
+        self.status_var.set("⏳ Scanning files...")
         self.root.update()  # Update GUI to show status
         
         try:
             # Scan the directory
             self.scanned_files = self.scanner.scan_directory(self.selected_folder)
+            
+            if not self.scanned_files:
+                self.status_var.set("⚠ No files found in selected folder")
+                self._update_button_states()
+                messagebox.showinfo("No Files", "No files were found in the selected folder.")
+                return
+            
+            self.status_var.set(f"⏳ Analyzing {len(self.scanned_files)} files...")
+            self.root.update()
             
             # Get detailed file type statistics
             file_type_stats = self.scanner.get_file_type_stats(self.scanned_files)
@@ -1698,18 +1813,22 @@ class FileJanitorApp:
             errors = self.scanner.get_scan_errors()
             if errors:
                 self.display_scan_errors(errors)
+                self.status_var.set(f"⚠ Analysis complete with {len(errors)} warning(s)")
             
             # Perform AI-based filename analysis if service is available
             if self.ai_service and len(self.scanned_files) > 0:
-                self.status_var.set("Running AI analysis on filenames...")
+                self.status_var.set("🤖 Running AI analysis on filenames...")
                 self.root.update()
                 self.perform_ai_filename_analysis()
             
-            self.status_var.set(f"Analysis complete - Found {len(self.scanned_files)} files")
+            self.status_var.set(f"✓ Analysis complete - Found {len(self.scanned_files)} files")
             
         except Exception as e:
-            messagebox.showerror("Scan Error", f"An error occurred during scanning: {str(e)}")
-            self.status_var.set("Scan failed")
+            messagebox.showerror("Scan Error", f"An error occurred during scanning:\n\n{str(e)}")
+            self.status_var.set("❌ Scan failed")
+        finally:
+            # Re-enable buttons
+            self._update_button_states()
     
     def perform_ai_filename_analysis(self):
         """Perform AI-based filename clustering analysis"""
@@ -1722,7 +1841,7 @@ class FileJanitorApp:
             filenames_to_analyze = [f['name'] for f in files_to_analyze]
             
             if len(self.scanned_files) > 100:
-                self.status_var.set(f"Analyzing first 100 of {len(self.scanned_files)} files...")
+                self.status_var.set(f"🤖 Analyzing first 100 of {len(self.scanned_files)} files...")
                 self.root.update()
             
             # Call AI service
@@ -1730,7 +1849,7 @@ class FileJanitorApp:
             
             # Create organization plan based on AI analysis
             if not result.get('error') and result.get('clusters'):
-                self.status_var.set("Creating organization plan...")
+                self.status_var.set("📋 Creating organization plan...")
                 self.root.update()
                 
                 self.current_plan = self.planner.create_plan(files_to_analyze, result)
@@ -1738,17 +1857,18 @@ class FileJanitorApp:
                 # Display the plan
                 self.display_organization_plan(self.current_plan)
                 
-                # Enable execute button if plan is valid
-                if self.current_plan and not self.current_plan.get('error'):
-                    self.execute_button.config(state=tk.NORMAL)
+                # Update button states
+                self._update_button_states()
             else:
                 # Display clustering results without plan
                 self.display_ai_clusters(result)
+                self.status_var.set("⚠ AI analysis completed with errors")
             
         except Exception as e:
             self.plan_text.config(state=tk.NORMAL)
             self.plan_text.insert(tk.END, f"\n⚠️ AI Analysis Error: {str(e)}\n")
             self.plan_text.config(state=tk.DISABLED)
+            self.status_var.set("❌ AI analysis failed")
     
     def perform_content_analysis(self, file_info: Dict) -> Dict:
         """
@@ -2020,11 +2140,14 @@ class FileJanitorApp:
         
         if self.current_plan.get('error'):
             messagebox.showerror("Invalid Plan", 
-                               f"Cannot execute plan with errors: {self.current_plan.get('error')}")
+                               f"Cannot execute plan with errors:\n\n{self.current_plan.get('error')}")
             return
         
         if not self.selected_folder:
             messagebox.showerror("No Folder", "No folder selected for organization.")
+            return
+        
+        if self.is_processing:
             return
         
         # Show mandatory safety confirmation dialog
@@ -2049,30 +2172,40 @@ class FileJanitorApp:
         )
         
         if not response:
-            self.status_var.set("Plan execution cancelled by user")
+            self.status_var.set("⚠ Plan execution cancelled by user")
             return
         
-        # Disable buttons during execution
-        self.execute_button.config(state=tk.DISABLED)
-        self.analyze_button.config(state=tk.DISABLED)
+        # Update button states to disabled during execution
+        self._update_button_states(executing=True)
         
         # Show progress bar
         self.progress_frame.grid()
-        self.progress_label.config(text="Executing plan...")
+        self.progress_label.config(text="⏳ Executing plan...")
         self.progress_bar['value'] = 0
         self.progress_bar['maximum'] = file_count + folder_count
         self.root.update_idletasks()
         
+        # Define progress callback to update progress bar
+        def update_progress(current, total):
+            self.progress_bar['value'] = current
+            percentage = int((current / total) * 100) if total > 0 else 0
+            self.progress_label.config(text=f"⏳ Executing plan... {percentage}% ({current}/{total})")
+            self.root.update_idletasks()
+        
         try:
-            # Execute the plan (not dry-run)
+            self.status_var.set("⏳ Executing file operations...")
+            
+            # Execute the plan (not dry-run) with progress callback
             result = self.executor.execute_plan(
                 self.current_plan, 
                 self.selected_folder, 
-                dry_run=False
+                dry_run=False,
+                progress_callback=update_progress
             )
             
             # Update progress bar to completion
             self.progress_bar['value'] = self.progress_bar['maximum']
+            self.progress_label.config(text=f"✓ Execution complete!")
             self.root.update_idletasks()
             
             # Display execution results
@@ -2089,7 +2222,7 @@ class FileJanitorApp:
                 )
                 messagebox.showinfo("Execution Complete", summary_message)
                 self.status_var.set(
-                    f"Plan executed: {result.get('operations_completed', 0)} files organized"
+                    f"✓ Plan executed: {result.get('operations_completed', 0)} files organized"
                 )
             else:
                 error_count = result.get('operations_failed', 0)
@@ -2102,7 +2235,7 @@ class FileJanitorApp:
                 )
                 messagebox.showwarning("Execution Completed with Errors", summary_message)
                 self.status_var.set(
-                    f"Plan executed with {error_count} error(s)"
+                    f"⚠ Plan executed with {error_count} error(s)"
                 )
             
         except Exception as e:
@@ -2110,19 +2243,17 @@ class FileJanitorApp:
                 "Execution Error", 
                 f"An unexpected error occurred during execution:\n\n{str(e)}"
             )
-            self.status_var.set("Plan execution failed")
+            self.status_var.set("❌ Plan execution failed")
         
         finally:
             # Hide progress bar
             self.progress_frame.grid_remove()
             
-            # Re-enable buttons
-            self.analyze_button.config(state=tk.NORMAL)
-            # Keep execute button disabled - user needs to re-analyze
-            self.execute_button.config(state=tk.DISABLED)
-            
             # Clear current plan to prevent re-execution
             self.current_plan = None
+            
+            # Re-enable buttons
+            self._update_button_states()
     
     def _display_execution_results(self, result: Dict):
         """
@@ -2175,6 +2306,9 @@ class FileJanitorApp:
             api_key = AIConfig.get_api_key(self.ai_provider, self.config)
             
             if api_key:
+                self.status_var.set("⏳ Connecting to AI service...")
+                self.root.update()
+                
                 self.ai_service = AIServiceFactory.create_service(
                     self.ai_provider, 
                     api_key
@@ -2183,21 +2317,21 @@ class FileJanitorApp:
                 # Test the connection
                 if self.ai_service.test_connection():
                     provider_name = self.ai_provider.value.capitalize()
-                    self.status_var.set(f"Connected to {provider_name} AI service")
+                    self.status_var.set(f"✓ Connected to {provider_name} AI service - Ready")
                 else:
-                    self.status_var.set(f"Warning: Could not verify AI connection")
+                    self.status_var.set(f"⚠ Warning: Could not verify AI connection")
             else:
                 self.ai_service = None
-                self.status_var.set("No AI API key configured")
+                self.status_var.set("⚠ No AI API key configured - Select a folder to begin")
                 
         except Exception as e:
             messagebox.showwarning(
                 "AI Service Warning", 
-                f"Could not initialize AI service: {str(e)}\n\n"
-                "Please configure your API key in Settings or set environment variable."
+                f"Could not initialize AI service:\n\n{str(e)}\n\n"
+                "Please configure your API key in ai_config.json or set environment variable."
             )
             self.ai_service = None
-            self.status_var.set("AI service initialization failed")
+            self.status_var.set("⚠ AI service initialization failed - Select a folder to begin")
     
     def switch_ai_provider(self, provider: AIProvider):
         """
