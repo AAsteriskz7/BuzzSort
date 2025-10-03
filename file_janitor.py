@@ -1814,9 +1814,6 @@ class FileJanitorApp:
         self.root.geometry("950x750")
         self.root.minsize(750, 550)
         
-        # Set window background color
-        self.root.configure(bg='#f0f0f0')
-        
         # Create menu bar
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
@@ -1848,9 +1845,7 @@ class FileJanitorApp:
         SUCCESS_COLOR = '#4CAF50'      # Green
         WARNING_COLOR = '#FF9800'      # Orange
         DANGER_COLOR = '#F44336'       # Red
-        BG_COLOR = '#FFFFFF'           # White
         TEXT_COLOR = '#212121'         # Dark gray
-        LIGHT_BG = '#F5F5F5'          # Light gray
         
         # Custom button styles with colors
         style.configure('Primary.TButton', 
@@ -1874,10 +1869,7 @@ class FileJanitorApp:
         style.map('Warning.TButton',
                  background=[('active', '#FFF3E0')])
         
-        # Frame styles
-        style.configure('Card.TFrame', background=BG_COLOR, relief='raised', borderwidth=1)
-        style.configure('TLabel', background='#f0f0f0', foreground=TEXT_COLOR)
-        style.configure('TLabelframe', background='#f0f0f0', foreground=TEXT_COLOR)
+        # Frame and label styles
         style.configure('TLabelframe.Label', font=('Segoe UI', 10, 'bold'))
         
         # Bind keyboard shortcuts
@@ -1935,7 +1927,7 @@ class FileJanitorApp:
         analysis_card.columnconfigure(0, weight=1)
         analysis_card.rowconfigure(0, weight=1)
         
-        # Scrollable text widget for analysis results with modern styling
+        # Scrollable text widget for analysis results
         analysis_scroll = ttk.Scrollbar(analysis_card)
         analysis_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
@@ -1943,14 +1935,7 @@ class FileJanitorApp:
                                    yscrollcommand=analysis_scroll.set,
                                    state=tk.DISABLED, height=8,
                                    font=('Consolas', 9),
-                                   bg='#FAFAFA',
-                                   fg='#212121',
-                                   relief='flat',
-                                   padx=15, pady=15,
-                                   borderwidth=0,
-                                   highlightthickness=1,
-                                   highlightbackground='#E0E0E0',
-                                   highlightcolor='#2196F3')
+                                   padx=10, pady=10)
         self.analysis_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         analysis_scroll.config(command=self.analysis_text.yview)
         
@@ -1980,7 +1965,7 @@ class FileJanitorApp:
         plan_card.columnconfigure(0, weight=1)
         plan_card.rowconfigure(0, weight=1)
         
-        # Scrollable text widget for organization plan with modern styling
+        # Scrollable text widget for organization plan
         plan_scroll = ttk.Scrollbar(plan_card)
         plan_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
@@ -1988,14 +1973,7 @@ class FileJanitorApp:
                                yscrollcommand=plan_scroll.set,
                                state=tk.DISABLED, height=8,
                                font=('Consolas', 9),
-                               bg='#FAFAFA',
-                               fg='#212121',
-                               relief='flat',
-                               padx=15, pady=15,
-                               borderwidth=0,
-                               highlightthickness=1,
-                               highlightbackground='#E0E0E0',
-                               highlightcolor='#FF9800')
+                               padx=10, pady=10)
         self.plan_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         plan_scroll.config(command=self.plan_text.yview)
         
@@ -2050,18 +2028,13 @@ class FileJanitorApp:
         self.progress_frame.grid_remove()
         
         # Status bar with modern styling
-        status_frame = ttk.Frame(main_frame, relief='flat')
-        status_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
-        status_frame.columnconfigure(0, weight=1)
-        
         self.status_var = tk.StringVar()
         self.status_var.set("✨ Ready - Select a folder to begin")
-        status_bar = tk.Label(status_frame, textvariable=self.status_var, 
-                            relief='flat', anchor=tk.W,
-                            bg='#E3F2FD', fg='#1976D2',
-                            font=('Segoe UI', 9),
-                            padx=10, pady=5)
-        status_bar.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        status_bar = ttk.Label(main_frame, textvariable=self.status_var, 
+                              relief='sunken', anchor=tk.W,
+                              foreground='#1976D2',
+                              font=('Segoe UI', 9))
+        status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
     
     def _create_tooltip(self, widget, text):
         """Create a tooltip for a widget"""

@@ -14,6 +14,7 @@ An AI-powered desktop application that automatically organizes cluttered directo
 - **Safe Execution**: Dry-run mode and confirmation dialogs prevent accidental changes
 - **Comprehensive Logging**: Track all operations with detailed logs
 - **Provider Flexibility**: Easy switching between Gemini and Claude AI services
+- **Modern UI**: Clean, professional interface with color-coded results and intuitive controls
 
 ## Requirements
 
