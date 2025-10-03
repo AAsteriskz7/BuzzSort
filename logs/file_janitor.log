@@ -1,0 +1,14 @@
+2025-10-03 13:47:48,699 - INFO - ============================================================
+2025-10-03 13:47:48,700 - INFO - File Janitor started
+2025-10-03 13:47:48,701 - INFO - ============================================================
+2025-10-03 13:47:48,701 - INFO - [SCAN] Scanned folder: /test/folder - Found 150 files
+2025-10-03 13:47:48,702 - ERROR - [SCAN_ERROR] FAILED: Error 1
+2025-10-03 13:47:48,702 - ERROR - [SCAN_ERROR] FAILED: Error 2
+2025-10-03 13:47:48,702 - INFO - [AI_ANALYSIS] Analyzed 150 files - Generated 5 clusters
+2025-10-03 13:47:48,703 - ERROR - [AI_ANALYSIS] FAILED: Failed to analyze 100 files: API quota exceeded
+2025-10-03 13:47:48,703 - INFO - [PLAN_CREATION] Created plan: 5 folders, 150 operations
+2025-10-03 13:47:48,704 - ERROR - [PLAN_EXECUTION] FAILED: [EXECUTION] Folders: 5, Completed: 145, Failed: 5
+2025-10-03 13:47:48,704 - INFO -   Created folder: documents
+2025-10-03 13:47:48,704 - INFO -   Moved: file1.txt -> documents/file1.txt
+2025-10-03 13:47:48,704 - ERROR -   [ERROR] Failed to move file2.txt
+2025-10-03 13:47:48,704 - ERROR - [TEST_ERROR] FAILED: This is a test error message

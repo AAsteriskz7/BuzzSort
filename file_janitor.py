@@ -6,6 +6,7 @@ Intelligent File Janitor - AI-powered file organization tool
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
+import sys
 import stat
 import shutil
 from pathlib import Path
@@ -18,6 +19,144 @@ import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import json
 from PIL import Image
+import logging
+
+
+class OperationLogger:
+    """Handles logging of file operations and application events"""
+    
+    LOG_DIR = "logs"
+    LOG_FILE = "file_janitor.log"
+    
+    def __init__(self):
+        """Initialize the logger"""
+        self.log_path = Path(self.LOG_DIR)
+        self.log_file_path = self.log_path / self.LOG_FILE
+        self.operation_history = []
+        self._setup_logging()
+    
+    def _setup_logging(self):
+        """Set up the logging configuration"""
+        try:
+            # Create logs directory if it doesn't exist
+            self.log_path.mkdir(exist_ok=True)
+            
+            # Configure logging
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                handlers=[
+                    logging.FileHandler(self.log_file_path, encoding='utf-8'),
+                    logging.StreamHandler()  # Also log to console
+                ]
+            )
+            
+            self.logger = logging.getLogger('FileJanitor')
+            self.logger.info("=" * 60)
+            self.logger.info("File Janitor started")
+            self.logger.info("=" * 60)
+            
+        except Exception as e:
+            print(f"Warning: Could not set up logging: {str(e)}")
+            self.logger = logging.getLogger('FileJanitor')
+    
+    def log_operation(self, operation_type: str, details: str, success: bool = True):
+        """
+        Log a file operation
+        
+        Args:
+            operation_type: Type of operation (e.g., 'scan', 'move', 'rename', 'create_folder')
+            details: Details about the operation
+            success: Whether the operation was successful
+        """
+        timestamp = datetime.now().isoformat()
+        status = "SUCCESS" if success else "FAILED"
+        
+        # Add to operation history
+        self.operation_history.append({
+            'timestamp': timestamp,
+            'type': operation_type,
+            'details': details,
+            'success': success
+        })
+        
+        # Log to file
+        if success:
+            self.logger.info(f"[{operation_type.upper()}] {details}")
+        else:
+            self.logger.error(f"[{operation_type.upper()}] FAILED: {details}")
+    
+    def log_scan(self, folder_path: str, file_count: int, errors: List[str] = None):
+        """Log a directory scan operation"""
+        self.log_operation('scan', f"Scanned folder: {folder_path} - Found {file_count} files", success=True)
+        if errors:
+            for error in errors:
+                self.log_operation('scan_error', error, success=False)
+    
+    def log_ai_analysis(self, file_count: int, cluster_count: int, success: bool = True, error: str = None):
+        """Log an AI analysis operation"""
+        if success:
+            self.log_operation('ai_analysis', f"Analyzed {file_count} files - Generated {cluster_count} clusters", success=True)
+        else:
+            self.log_operation('ai_analysis', f"Failed to analyze {file_count} files: {error}", success=False)
+    
+    def log_plan_creation(self, folder_count: int, operation_count: int, success: bool = True):
+        """Log organization plan creation"""
+        self.log_operation('plan_creation', f"Created plan: {folder_count} folders, {operation_count} operations", success=success)
+    
+    def log_plan_execution(self, result: Dict):
+        """
+        Log plan execution results
+        
+        Args:
+            result: Execution result dictionary from PlanExecutor
+        """
+        dry_run = result.get('dry_run', False)
+        mode = "DRY-RUN" if dry_run else "EXECUTION"
+        
+        folders_created = result.get('folders_created', 0)
+        operations_completed = result.get('operations_completed', 0)
+        operations_failed = result.get('operations_failed', 0)
+        
+        self.log_operation(
+            'plan_execution',
+            f"[{mode}] Folders: {folders_created}, Completed: {operations_completed}, Failed: {operations_failed}",
+            success=(operations_failed == 0)
+        )
+        
+        # Log individual operations from the execution log
+        for log_entry in result.get('log', []):
+            if '[ERROR]' in log_entry:
+                self.logger.error(f"  {log_entry}")
+            elif '[DRY-RUN]' in log_entry:
+                self.logger.info(f"  {log_entry}")
+            else:
+                self.logger.info(f"  {log_entry}")
+    
+    def log_error(self, error_type: str, error_message: str):
+        """Log an error"""
+        self.log_operation(error_type, error_message, success=False)
+    
+    def get_operation_history(self, limit: int = 100) -> List[Dict]:
+        """
+        Get recent operation history
+        
+        Args:
+            limit: Maximum number of operations to return
+            
+        Returns:
+            List of operation dictionaries
+        """
+        return self.operation_history[-limit:]
+    
+    def get_log_file_path(self) -> str:
+        """Get the path to the log file"""
+        return str(self.log_file_path.absolute())
+    
+    def clear_history(self):
+        """Clear the in-memory operation history"""
+        self.operation_history = []
+        self.logger.info("Operation history cleared")
 
 
 class AIProvider(Enum):
@@ -1641,6 +1780,7 @@ class FileJanitorApp:
         self.scanner = FileScanner()
         self.planner = OrganizationPlanner()
         self.executor = PlanExecutor()
+        self.logger = OperationLogger()  # Initialize logger
         self.scanned_files = []
         self.filtered_files = []  # Files selected for organization
         self.date_suggestions = []  # Date-based filtering suggestions
@@ -1665,6 +1805,28 @@ class FileJanitorApp:
         self.root.geometry("900x700")
         self.root.minsize(700, 500)
         
+        # Create menu bar
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Select Folder...", command=self.select_folder, accelerator="Ctrl+O")
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_command(label="Operation History", command=self.show_operation_history, accelerator="Ctrl+H")
+        view_menu.add_command(label="Open Log File", command=self.open_log_file, accelerator="Ctrl+L")
+        
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="About", command=self.show_about)
+        
         # Configure ttk style for better appearance
         style = ttk.Style()
         style.theme_use('clam')  # Modern theme
@@ -1679,6 +1841,8 @@ class FileJanitorApp:
         self.root.bind('<Control-a>', lambda e: self.analyze_files() if self.analyze_button['state'] == tk.NORMAL else None)
         self.root.bind('<Control-e>', lambda e: self.execute_plan() if self.execute_button['state'] == tk.NORMAL else None)
         self.root.bind('<F5>', lambda e: self.analyze_files() if self.analyze_button['state'] == tk.NORMAL else None)
+        self.root.bind('<Control-h>', lambda e: self.show_operation_history())
+        self.root.bind('<Control-l>', lambda e: self.open_log_file())
         
         # Create main frame
         main_frame = ttk.Frame(self.root, padding="10")
@@ -2010,6 +2174,10 @@ class FileJanitorApp:
             # Scan the directory
             self.scanned_files = self.scanner.scan_directory(self.selected_folder)
             
+            # Log the scan operation
+            errors = self.scanner.get_scan_errors()
+            self.logger.log_scan(self.selected_folder, len(self.scanned_files), errors)
+            
             if not self.scanned_files:
                 self.status_var.set("⚠ No files found in selected folder")
                 self._update_button_states()
@@ -2029,7 +2197,6 @@ class FileJanitorApp:
             self.display_analysis_results(file_type_stats, self.date_suggestions)
             
             # Check for errors
-            errors = self.scanner.get_scan_errors()
             if errors:
                 self.display_scan_errors(errors)
                 self.status_var.set(f"⚠ Analysis complete with {len(errors)} warning(s)")
@@ -2040,6 +2207,7 @@ class FileJanitorApp:
             self.status_var.set(f"✓ Analysis complete - Found {len(self.scanned_files)} files - Select files to organize")
             
         except Exception as e:
+            self.logger.log_error('scan', str(e))
             messagebox.showerror("Scan Error", f"An error occurred during scanning:\n\n{str(e)}")
             self.status_var.set("❌ Scan failed")
         finally:
@@ -2110,10 +2278,21 @@ class FileJanitorApp:
                 
                 # Create organization plan based on AI analysis
                 if not result.get('error') and result.get('clusters'):
+                    # Log successful AI analysis
+                    self.logger.log_ai_analysis(len(files_to_process), len(result.get('clusters', [])), success=True)
+                    
                     self.status_var.set("📋 Creating organization plan...")
                     self.root.update()
                     
                     self.current_plan = self.planner.create_plan(files_to_process, result)
+                    
+                    # Log plan creation
+                    if self.current_plan and not self.current_plan.get('error'):
+                        self.logger.log_plan_creation(
+                            len(self.current_plan.get('folders_to_create', [])),
+                            len(self.current_plan.get('file_operations', [])),
+                            success=True
+                        )
                     
                     # Display the plan
                     self.display_organization_plan(self.current_plan)
@@ -2122,6 +2301,7 @@ class FileJanitorApp:
                     self._update_button_states()
                 else:
                     # AI analysis failed - fall back to basic organization
+                    self.logger.log_ai_analysis(len(files_to_process), 0, success=False, error=result.get('error', 'Unknown error'))
                     self.status_var.set("⚠ AI analysis failed - Using basic organization")
                     self._fallback_to_basic_organization(files_to_process, result.get('error', 'Unknown error'))
             
@@ -2553,6 +2733,9 @@ class FileJanitorApp:
                 progress_callback=update_progress
             )
             
+            # Log the execution results
+            self.logger.log_plan_execution(result)
+            
             # Update progress bar to completion
             self.progress_bar['value'] = self.progress_bar['maximum']
             self.progress_label.config(text=f"✓ Execution complete!")
@@ -2698,6 +2881,128 @@ class FileJanitorApp:
             self.status_var.set(f"Switched to {provider_name} AI provider")
         else:
             self.status_var.set(f"Failed to switch provider - check API key")
+    
+    def show_operation_history(self):
+        """Display operation history in a new window"""
+        history = self.logger.get_operation_history()
+        
+        if not history:
+            messagebox.showinfo("Operation History", "No operations have been performed yet.")
+            return
+        
+        # Create a new window for history
+        history_window = tk.Toplevel(self.root)
+        history_window.title("Operation History")
+        history_window.geometry("800x600")
+        
+        # Create frame
+        frame = ttk.Frame(history_window, padding="10")
+        frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        history_window.columnconfigure(0, weight=1)
+        history_window.rowconfigure(0, weight=1)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
+        
+        # Header
+        header_label = ttk.Label(frame, text=f"Operation History ({len(history)} operations)", 
+                                font=('Arial', 12, 'bold'))
+        header_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        
+        # Create text widget with scrollbar
+        text_frame = ttk.Frame(frame)
+        text_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        text_frame.columnconfigure(0, weight=1)
+        text_frame.rowconfigure(0, weight=1)
+        
+        scrollbar = ttk.Scrollbar(text_frame)
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set,
+                            font=('Consolas', 9), padx=10, pady=10)
+        text_widget.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.config(command=text_widget.yview)
+        
+        # Configure tags for color coding
+        text_widget.tag_configure('success', foreground='#2e7d32')
+        text_widget.tag_configure('failed', foreground='#d32f2f')
+        text_widget.tag_configure('timestamp', foreground='#666666', font=('Consolas', 8))
+        text_widget.tag_configure('type', foreground='#1976d2', font=('Consolas', 9, 'bold'))
+        
+        # Display history (most recent first)
+        for operation in reversed(history):
+            timestamp = operation.get('timestamp', '')
+            op_type = operation.get('type', 'unknown')
+            details = operation.get('details', '')
+            success = operation.get('success', True)
+            
+            # Format timestamp
+            try:
+                dt = datetime.fromisoformat(timestamp)
+                formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+            except:
+                formatted_time = timestamp
+            
+            # Insert operation
+            text_widget.insert(tk.END, f"[{formatted_time}] ", 'timestamp')
+            text_widget.insert(tk.END, f"{op_type.upper()}: ", 'type')
+            
+            if success:
+                text_widget.insert(tk.END, f"{details}\n", 'success')
+            else:
+                text_widget.insert(tk.END, f"FAILED - {details}\n", 'failed')
+        
+        text_widget.config(state=tk.DISABLED)
+        
+        # Buttons
+        button_frame = ttk.Frame(frame)
+        button_frame.grid(row=2, column=0, pady=(10, 0))
+        
+        ttk.Button(button_frame, text="Open Log File", 
+                  command=self.open_log_file).grid(row=0, column=0, padx=5)
+        ttk.Button(button_frame, text="Close", 
+                  command=history_window.destroy).grid(row=0, column=1, padx=5)
+    
+    def open_log_file(self):
+        """Open the log file in the default text editor"""
+        log_path = self.logger.get_log_file_path()
+        
+        if not os.path.exists(log_path):
+            messagebox.showinfo("Log File", "No log file exists yet. Perform some operations first.")
+            return
+        
+        try:
+            # Open log file with default application
+            if os.name == 'nt':  # Windows
+                os.startfile(log_path)
+            elif os.name == 'posix':  # macOS and Linux
+                import subprocess
+                if sys.platform == 'darwin':  # macOS
+                    subprocess.call(['open', log_path])
+                else:  # Linux
+                    subprocess.call(['xdg-open', log_path])
+            
+            self.status_var.set(f"✓ Opened log file: {log_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open log file:\n\n{str(e)}\n\nLog file location:\n{log_path}")
+    
+    def show_about(self):
+        """Show about dialog"""
+        about_message = (
+            "🧹 Intelligent File Janitor\n\n"
+            "AI-powered file organization tool\n\n"
+            "Features:\n"
+            "• Automatic file scanning and analysis\n"
+            "• AI-based file clustering and organization\n"
+            "• Safe file operations with confirmations\n"
+            "• Operation logging and history\n\n"
+            "Keyboard Shortcuts:\n"
+            "• Ctrl+O: Select folder\n"
+            "• Ctrl+A / F5: Analyze files\n"
+            "• Ctrl+E: Execute plan\n"
+            "• Ctrl+H: View operation history\n"
+            "• Ctrl+L: Open log file\n"
+        )
+        messagebox.showinfo("About File Janitor", about_message)
     
     def run(self):
         """Start the application"""
