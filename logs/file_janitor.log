@@ -60,3 +60,128 @@
 2025-10-03 14:51:29,549 - INFO - ============================================================
 2025-10-03 14:51:29,550 - INFO - File Janitor started
 2025-10-03 14:51:29,550 - INFO - ============================================================
+2025-10-03 14:56:22,283 - INFO - ============================================================
+2025-10-03 14:56:22,284 - INFO - File Janitor started
+2025-10-03 14:56:22,284 - INFO - ============================================================
+2025-10-03 15:10:33,444 - INFO - ============================================================
+2025-10-03 15:10:33,444 - INFO - File Janitor started
+2025-10-03 15:10:33,445 - INFO - ============================================================
+2025-10-03 15:10:35,258 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-03 15:10:59,118 - INFO - [SCAN] Scanned folder: C:/Users/avsad/OneDrive/Desktop/Downloads - Found 6846 files
+2025-10-03 15:12:16,390 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-03 15:12:16,807 - INFO - [SCAN] Scanned folder: C:/Users/avsad/OneDrive/Desktop/Downloads - Found 6846 files
+2025-10-03 15:12:24,428 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-03 15:12:40,959 - INFO - [PLAN_EXECUTION] [EXECUTION] Folders: 10, Completed: 103, Failed: 0
+2025-10-03 15:12:40,959 - INFO -   Created folder: batch1_CS1332_Materials
+2025-10-03 15:12:40,959 - INFO -   Created folder: batch1_Career_Planning
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch1_Computer_Architecture
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch1_Media_Files
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch1_Wellness_Programs
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch2_.system
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch2_docs
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch2_simulations
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch2_test_cases
+2025-10-03 15:12:40,960 - INFO -   Created folder: batch2_tools
+2025-10-03 15:12:40,960 - INFO -   Moved: CS 1332 - 2021Spring - Exam1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\CS 1332 - 2021Spring - Exam1.pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: CS 1332 - 2025Fall - Practice Exam 1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\CS 1332 - 2025Fall - Practice Exam 1.pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: CS 1332 Exam 1 Review.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\CS 1332 Exam 1 Review.pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: CS 1332 F25 Worksheet 0.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\CS 1332 F25 Worksheet 0.pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: CS 1332 F25 Worksheet 1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\CS 1332 F25 Worksheet 1.pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: CS 1332 F25 Worksheet 2.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\CS 1332 F25 Worksheet 2.pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: CS 1332 F25 Worksheet 3.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\CS 1332 F25 Worksheet 3.pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: 0. Course Time Complexity Worksheet [Updated] (1).pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\0. Course Time Complexity Worksheet [Updated] (1).pdf
+2025-10-03 15:12:40,961 - INFO -   Moved: 0. Course Time Complexity Worksheet [Updated].pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\0. Course Time Complexity Worksheet [Updated].pdf
+2025-10-03 15:12:40,962 - INFO -   Moved: 1. ArrayList Efficiency and Extension Worksheet.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\1. ArrayList Efficiency and Extension Worksheet.pdf
+2025-10-03 15:12:40,962 - INFO -   Moved: 2. LinkedLists Efficiency and Extension Worksheet.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\2. LinkedLists Efficiency and Extension Worksheet.pdf
+2025-10-03 15:12:40,962 - INFO -   Moved: 3. Stacks and Queues Efficiency and Extension Worksheet.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\3. Stacks and Queues Efficiency and Extension Worksheet.pdf
+2025-10-03 15:12:40,962 - INFO -   Moved: 4. BSTs Efficiency and Extension Worksheet.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\4. BSTs Efficiency and Extension Worksheet.pdf
+2025-10-03 15:12:40,962 - INFO -   Moved: 1332_exam_1 (1).pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\1332_exam_1 (1).pdf
+2025-10-03 15:12:40,962 - INFO -   Moved: 1332_exam_1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\1332_exam_1.pdf
+2025-10-03 15:12:40,962 - INFO -   Moved: homework03.zip -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\homework03.zip
+2025-10-03 15:12:40,962 - INFO -   Moved: homework04.zip -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\homework04.zip
+2025-10-03 15:12:40,962 - INFO -   Moved: homework05.zip -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\homework05.zip
+2025-10-03 15:12:40,962 - INFO -   Moved: HomeworkEC.zip -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\HomeworkEC.zip
+2025-10-03 15:12:40,962 - INFO -   Moved: proj01-v1.1.zip -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\proj01-v1.1.zip
+2025-10-03 15:12:40,963 - INFO -   Moved: proj02.zip -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_CS1332_Materials\proj02.zip
+2025-10-03 15:12:40,963 - INFO -   Moved: CircuitSim.jar -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\CircuitSim.jar
+2025-10-03 15:12:40,963 - INFO -   Moved: LC-3_ ISA Reference Sheet.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\LC-3_ ISA Reference Sheet.pdf
+2025-10-03 15:12:40,963 - INFO -   Moved: latches.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\latches.sim
+2025-10-03 15:12:40,963 - INFO -   Moved: LC3.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\LC3.sim
+2025-10-03 15:12:40,963 - INFO -   Moved: LC3InstructionsDetail.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\LC3InstructionsDetail.pdf
+2025-10-03 15:12:40,963 - INFO -   Moved: microcode.xlsx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\microcode.xlsx
+2025-10-03 15:12:40,963 - INFO -   Moved: proj2-tester.jar -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\proj2-tester.jar
+2025-10-03 15:12:40,963 - INFO -   Moved: project2.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\project2.pdf
+2025-10-03 15:12:40,963 - INFO -   Moved: add.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\add.asm
+2025-10-03 15:12:40,963 - INFO -   Moved: add.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\add.dat
+2025-10-03 15:12:40,963 - INFO -   Moved: and.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\and.asm
+2025-10-03 15:12:40,964 - INFO -   Moved: and.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\and.dat
+2025-10-03 15:12:40,964 - INFO -   Moved: coveragetest0.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\coveragetest0.asm
+2025-10-03 15:12:40,964 - INFO -   Moved: coveragetest0.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\coveragetest0.dat
+2025-10-03 15:12:40,964 - INFO -   Moved: coveragetest1.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\coveragetest1.asm
+2025-10-03 15:12:40,964 - INFO -   Moved: APPH 1050 Semester Wellness Challenge Instructions-2025.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Wellness_Programs\APPH 1050 Semester Wellness Challenge Instructions-2025.pdf
+2025-10-03 15:12:40,964 - INFO -   Moved: Atomic Habits Assignment and Reflection-1.docx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Wellness_Programs\Atomic Habits Assignment and Reflection-1.docx
+2025-10-03 15:12:40,964 - INFO -   Moved: Atomic Habits Assignment and Reflection-1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Wellness_Programs\Atomic Habits Assignment and Reflection-1.pdf
+2025-10-03 15:12:40,964 - INFO -   Moved: Exercise Program worksheet-2025.docx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Wellness_Programs\Exercise Program worksheet-2025.docx
+2025-10-03 15:12:40,964 - INFO -   Moved: Semester Wellness Challenge Part 1- Program Plan and Goal Setting (1).docx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Wellness_Programs\Semester Wellness Challenge Part 1- Program Plan and Goal Setting (1).docx
+2025-10-03 15:12:40,965 - INFO -   Moved: Semester Wellness Challenge Part 1- Program Plan and Goal Setting (1).pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Wellness_Programs\Semester Wellness Challenge Part 1- Program Plan and Goal Setting (1).pdf
+2025-10-03 15:12:40,965 - INFO -   Moved: Semester Wellness Challenge Part 1- Program Plan and Goal Setting.docx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Wellness_Programs\Semester Wellness Challenge Part 1- Program Plan and Goal Setting.docx
+2025-10-03 15:12:40,965 - INFO -   Moved: Google_AI_Studio_2025-09-23T15_34_28.154Z.png -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Google_AI_Studio_2025-09-23T15_34_28.154Z.png
+2025-10-03 15:12:40,965 - INFO -   Moved: Google_AI_Studio_2025-09-23T20_48_55.324Z.png -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Google_AI_Studio_2025-09-23T20_48_55.324Z.png
+2025-10-03 15:12:40,965 - INFO -   Moved: Google_AI_Studio_2025-09-23T20_54_41.119Z.png -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Google_AI_Studio_2025-09-23T20_54_41.119Z.png
+2025-10-03 15:12:40,965 - INFO -   Moved: Generated File September 27, 2025 - 1_32PM.mp4 -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Generated File September 27, 2025 - 1_32PM.mp4
+2025-10-03 15:12:40,966 - INFO -   Moved: Generated File September 27, 2025 - 1_41PM.mp4 -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Generated File September 27, 2025 - 1_41PM.mp4
+2025-10-03 15:12:40,966 - INFO -   Moved: Generated File September 27, 2025 - 1_45PM.mp4 -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Generated File September 27, 2025 - 1_45PM.mp4
+2025-10-03 15:12:40,966 - INFO -   Moved: PXL_20250904_231948972.RAW-01.COVER.jpg -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\PXL_20250904_231948972.RAW-01.COVER.jpg
+2025-10-03 15:12:40,966 - INFO -   Moved: PXL_20250904_234132894.RAW-01.COVER.jpg -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\PXL_20250904_234132894.RAW-01.COVER.jpg
+2025-10-03 15:12:40,966 - INFO -   Moved: PXL_20250905_005207716.RAW-01.COVER.jpg -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\PXL_20250905_005207716.RAW-01.COVER.jpg
+2025-10-03 15:12:40,967 - INFO -   Moved: Screenshot_20250930_163646_Samsung Notes.jpg -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Screenshot_20250930_163646_Samsung Notes.jpg
+2025-10-03 15:12:40,967 - INFO -   Moved: Video_Generation_From_Image.mp4 -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Video_Generation_From_Image.mp4
+2025-10-03 15:12:40,967 - INFO -   Moved: Video_Generation_Of_Person_Working.mp4 -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Video_Generation_Of_Person_Working.mp4
+2025-10-03 15:12:40,967 - INFO -   Moved: Video_of_Person_Reading_and_Flipping.mp4 -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Media_Files\Video_of_Person_Reading_and_Flipping.mp4
+2025-10-03 15:12:40,967 - INFO -   Moved: Fall 2025 All-Majors In Person Career Fair - Filtered Employers.xlsx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Career_Planning\Fall 2025 All-Majors In Person Career Fair - Filtered Employers.xlsx
+2025-10-03 15:12:40,968 - INFO -   Moved: Jump Start Company Research (1).xlsx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Career_Planning\Jump Start Company Research (1).xlsx
+2025-10-03 15:12:40,968 - INFO -   Moved: Jump Start Company Research.xlsx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Career_Planning\Jump Start Company Research.xlsx
+2025-10-03 15:12:40,968 - INFO -   Moved: Living Schedule Sections_C_D Fall2025_v4.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Career_Planning\Living Schedule Sections_C_D Fall2025_v4.pdf
+2025-10-03 15:12:40,968 - INFO -   Moved: Living_Schedule_C_D_Fall2025_v5.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Career_Planning\Living_Schedule_C_D_Fall2025_v5.pdf
+2025-10-03 15:12:40,969 - INFO -   Moved: coveragetest1.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\coveragetest1.dat
+2025-10-03 15:12:40,969 - INFO -   Moved: coveragetest2.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\coveragetest2.asm
+2025-10-03 15:12:40,969 - INFO -   Moved: coveragetest2.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\coveragetest2.dat
+2025-10-03 15:12:40,969 - INFO -   Moved: coveragetest3.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\coveragetest3.asm
+2025-10-03 15:12:40,969 - INFO -   Moved: coveragetest3.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\coveragetest3.dat
+2025-10-03 15:12:40,969 - INFO -   Moved: fetch.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\fetch.asm
+2025-10-03 15:12:40,969 - INFO -   Moved: fetch.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\fetch.dat
+2025-10-03 15:12:40,969 - INFO -   Moved: jmp.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\jmp.asm
+2025-10-03 15:12:40,969 - INFO -   Moved: jmp.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\jmp.dat
+2025-10-03 15:12:40,970 - INFO -   Moved: jmpi.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\jmpi.asm
+2025-10-03 15:12:40,970 - INFO -   Moved: jmpi.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\jmpi.dat
+2025-10-03 15:12:40,970 - INFO -   Moved: ld.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ld.asm
+2025-10-03 15:12:40,970 - INFO -   Moved: ld.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ld.dat
+2025-10-03 15:12:40,970 - INFO -   Moved: ldi.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ldi.asm
+2025-10-03 15:12:40,971 - INFO -   Moved: ldi.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ldi.dat
+2025-10-03 15:12:40,971 - INFO -   Moved: ldminusr.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ldminusr.asm
+2025-10-03 15:12:40,971 - INFO -   Moved: ldminusr.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ldminusr.dat
+2025-10-03 15:12:40,971 - INFO -   Moved: ldr.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ldr.asm
+2025-10-03 15:12:40,971 - INFO -   Moved: ldr.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\ldr.dat
+2025-10-03 15:12:40,971 - INFO -   Moved: lea.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\lea.asm
+2025-10-03 15:12:40,972 - INFO -   Moved: lea.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\lea.dat
+2025-10-03 15:12:40,972 - INFO -   Moved: not.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\not.asm
+2025-10-03 15:12:40,972 - INFO -   Moved: not.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\not.dat
+2025-10-03 15:12:40,972 - INFO -   Moved: st.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\st.asm
+2025-10-03 15:12:40,972 - INFO -   Moved: st.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\st.dat
+2025-10-03 15:12:40,972 - INFO -   Moved: sti.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\sti.asm
+2025-10-03 15:12:40,973 - INFO -   Moved: sti.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\sti.dat
+2025-10-03 15:12:40,973 - INFO -   Moved: str.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\str.asm
+2025-10-03 15:12:40,973 - INFO -   Moved: str.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_test_cases\str.dat
+2025-10-03 15:12:40,973 - INFO -   Moved: alu.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_simulations\alu.sim
+2025-10-03 15:12:40,974 - INFO -   Moved: gates.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_simulations\gates.sim
+2025-10-03 15:12:40,974 - INFO -   Moved: muxes.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_simulations\muxes.sim
+2025-10-03 15:12:40,974 - INFO -   Moved: project.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_simulations\project.sim
+2025-10-03 15:12:40,974 - INFO -   Moved: tutorial1.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_simulations\tutorial1.sim
+2025-10-03 15:12:40,974 - INFO -   Moved: tutorial2.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_simulations\tutorial2.sim
+2025-10-03 15:12:40,974 - INFO -   Moved: project1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_docs\project1.pdf
+2025-10-03 15:12:40,975 - INFO -   Moved: truthtable_kmap.xlsx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_docs\truthtable_kmap.xlsx
+2025-10-03 15:12:40,975 - INFO -   Moved: project1-tester-1.0.jar -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_tools\project1-tester-1.0.jar
+2025-10-03 15:12:40,975 - INFO -   Moved: .DS_Store -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_.system\.DS_Store
+2025-10-03 15:12:40,975 - INFO -   Moved: ._.DS_Store -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_.system\._.DS_Store
+2025-10-03 15:12:40,975 - INFO -   Moved: ._project1-tester-1.0.jar -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_.system\._project1-tester-1.0.jar
+2025-10-03 15:12:40,981 - INFO -   Moved: ._project1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_.system\._project1.pdf

@@ -1,11 +1,13 @@
-# Intelligent File Janitor 🧹
+# 🐝 Buzz Sort
 
-An AI-powered desktop application that automatically organizes cluttered directories using intelligent content analysis. The File Janitor uses multimodal AI to understand your files and create smart organization plans.
+**AI-Powered File Organization • Georgia Tech Yellow Jacket Edition**
+
+Buzz Sort is an intelligent desktop application that automatically organizes cluttered directories using advanced AI content analysis. Powered by Claude AI, Buzz Sort understands your files and creates smart organization plans with the precision and efficiency of a Yellow Jacket.
 
 ## Features
 
 - **Smart File Scanning**: Recursively scans directories and extracts comprehensive metadata
-- **AI-Powered Analysis**: Uses Google Gemini (or Claude) to analyze file content and suggest organization
+- **AI-Powered Analysis**: Uses Claude 3.5 Sonnet to analyze file content and suggest intelligent organization
 - **Two-Pass Triage**: Efficiently handles large volumes of files with intelligent clustering
 - **Multimodal Content Analysis**: 
   - Text content analysis for documents
@@ -13,15 +15,15 @@ An AI-powered desktop application that automatically organizes cluttered directo
   - Metadata-based categorization for all file types
 - **Safe Execution**: Dry-run mode and confirmation dialogs prevent accidental changes
 - **Comprehensive Logging**: Track all operations with detailed logs
-- **Provider Flexibility**: Easy switching between Gemini and Claude AI services
-- **Modern UI**: Clean, professional interface with color-coded results and intuitive controls
+- **Yellow Jacket UI**: Stunning Georgia Tech-themed interface with official GT colors
+- **Modern Design**: Professional interface with color-coded results and intuitive controls
 
 ## Requirements
 
 - Python 3.9 or higher
 - Windows, macOS, or Linux
 - Internet connection (for AI API calls)
-- Google Gemini API key (or Anthropic Claude API key)
+- Anthropic Claude API key
 
 ## Installation
 
@@ -29,7 +31,7 @@ An AI-powered desktop application that automatically organizes cluttered directo
 
 ```bash
 git clone <repository-url>
-cd intelligent-file-janitor
+cd buzz-sort
 ```
 
 ### 2. Create a Virtual Environment
@@ -52,23 +54,23 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Configure API Keys
+### 4. Configure API Key
 
 Create an `ai_config.json` file in the project root:
 
 ```json
 {
-  "provider": "gemini",
-  "gemini_api_key": "YOUR_GEMINI_API_KEY_HERE",
-  "claude_api_key": ""
+  "provider": "claude",
+  "claude_api_key": "YOUR_CLAUDE_API_KEY_HERE"
 }
 ```
 
-**Getting API Keys:**
-- **Gemini**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-- **Claude**: Visit [Anthropic Console](https://console.anthropic.com/)
-
-You can also use the `.env.example` file as a reference.
+**Getting Your API Key:**
+- Visit [Anthropic Console](https://console.anthropic.com/)
+- Sign up or log in
+- Navigate to API Keys
+- Create a new API key
+- Copy and paste it into `ai_config.json`
 
 ### 5. Verify Installation
 
@@ -279,4 +281,6 @@ For issues, questions, or suggestions:
 
 ---
 
-**Made with ❤️ using AI-powered file organization**
+**🐝 Buzz Sort - Made with Yellow Jacket Pride at Georgia Tech**
+
+*Powered by Claude AI • Themed in Tech Gold & Navy Blue*

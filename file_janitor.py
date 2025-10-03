@@ -15,8 +15,6 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from abc import ABC, abstractmethod
 from enum import Enum
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import json
 from PIL import Image
 import logging
@@ -161,7 +159,6 @@ class OperationLogger:
 
 class AIProvider(Enum):
     """Enum for supported AI providers"""
-    GEMINI = "gemini"
     CLAUDE = "claude"
 
 
@@ -179,8 +176,7 @@ class AIConfig:
             Dictionary with configuration settings
         """
         config = {
-            'provider': 'gemini',
-            'gemini_api_key': '',
+            'provider': 'claude',
             'claude_api_key': ''
         }
         
@@ -194,8 +190,6 @@ class AIConfig:
             print(f"Warning: Could not load config file: {str(e)}")
         
         # Override with environment variables if present
-        if os.environ.get('GEMINI_API_KEY'):
-            config['gemini_api_key'] = os.environ.get('GEMINI_API_KEY')
         if os.environ.get('CLAUDE_API_KEY'):
             config['claude_api_key'] = os.environ.get('CLAUDE_API_KEY')
         if os.environ.get('AI_PROVIDER'):
@@ -234,9 +228,7 @@ class AIConfig:
         Returns:
             API key string or None if not found
         """
-        if provider == AIProvider.GEMINI:
-            return config.get('gemini_api_key', '')
-        elif provider == AIProvider.CLAUDE:
+        if provider == AIProvider.CLAUDE:
             return config.get('claude_api_key', '')
         return None
 
@@ -295,60 +287,38 @@ class AIServiceInterface(ABC):
         pass
 
 
-class GeminiService(AIServiceInterface):
-    """Google Gemini AI service implementation"""
+class ClaudeService(AIServiceInterface):
+    """Anthropic Claude AI service implementation"""
     
     def __init__(self, api_key: str):
         """
-        Initialize Gemini service
+        Initialize Claude service
         
         Args:
-            api_key: Google Gemini API key
+            api_key: Anthropic Claude API key
         """
         self.api_key = api_key
-        self.model = None
-        self.vision_model = None
+        self.model = "claude-3-5-sonnet-20241022"  # Latest Claude 3.5 Sonnet
+        self.client = None
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize the Gemini API client"""
+        """Initialize the Claude API client"""
         try:
             if not self.api_key or len(self.api_key.strip()) == 0:
                 raise ValueError("API key is empty or invalid")
             
-            # Configure the API key
-            genai.configure(api_key=self.api_key)
-            
-            # Initialize text model (Gemini 2.5 Flash)
-            self.model = genai.GenerativeModel(
-                'gemini-2.0-flash-lite',
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-            )
-            
-            # Initialize vision model (Gemini 2.5 Flash)
-            self.vision_model = genai.GenerativeModel(
-                'gemini-2.0-flash-lite',
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-            )
+            import anthropic
+            self.client = anthropic.Anthropic(api_key=self.api_key)
             
         except ValueError as e:
             raise RuntimeError(f"Invalid API key: {str(e)}")
         except Exception as e:
-            raise RuntimeError(f"Failed to initialize Gemini client. Check your API key and internet connection: {str(e)}")
+            raise RuntimeError(f"Failed to initialize Claude client. Check your API key and internet connection: {str(e)}")
     
     def analyze_filenames(self, filenames: List[str]) -> Dict:
         """
-        Analyze filenames using Gemini API
+        Analyze filenames using Claude API
         
         Args:
             filenames: List of filenames to analyze
@@ -357,7 +327,7 @@ class GeminiService(AIServiceInterface):
             Dictionary with cluster information
         """
         try:
-            if not self.model:
+            if not self.client:
                 return {
                     'clusters': [],
                     'error': 'AI model not initialized. Check your API key configuration.'
@@ -397,17 +367,21 @@ Format your response as JSON with this structure:
   ]
 }}"""
             
-            # Generate response
+            # Generate response using Claude
             try:
-                response = self.model.generate_content(prompt)
+                message = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=2048,
+                    messages=[{"role": "user", "content": prompt}]
+                )
             except Exception as api_error:
                 error_str = str(api_error).lower()
-                if 'quota' in error_str or 'rate limit' in error_str:
+                if 'rate limit' in error_str or 'quota' in error_str:
                     return {
                         'clusters': [],
                         'error': 'API quota exceeded or rate limit reached. Please try again later.'
                     }
-                elif 'api key' in error_str or 'authentication' in error_str:
+                elif 'api key' in error_str or 'authentication' in error_str or 'unauthorized' in error_str:
                     return {
                         'clusters': [],
                         'error': 'API authentication failed. Check your API key.'
@@ -423,14 +397,14 @@ Format your response as JSON with this structure:
                         'error': f'API request failed: {str(api_error)}'
                     }
             
-            if not response or not response.text:
+            if not message or not message.content:
                 return {
                     'clusters': [],
                     'error': 'Empty response from AI service. Try again or check your API quota.'
                 }
             
-            # Parse JSON response
-            response_text = response.text.strip()
+            # Extract text from response
+            response_text = message.content[0].text.strip()
             
             # Remove markdown code blocks if present
             if response_text.startswith('```json'):
@@ -471,7 +445,7 @@ Format your response as JSON with this structure:
     
     def analyze_text_content(self, filename: str, text_preview: str) -> Dict:
         """
-        Analyze text content using Gemini API
+        Analyze text content using Claude API
         
         Args:
             filename: Original filename
@@ -481,7 +455,7 @@ Format your response as JSON with this structure:
             Dictionary with analysis results
         """
         try:
-            if not self.model:
+            if not self.client:
                 return {
                     'purpose': 'Unknown',
                     'suggested_name': filename,
@@ -510,17 +484,21 @@ Format your response as JSON:
 }}"""
             
             # Generate response
-            response = self.model.generate_content(prompt)
+            message = self.client.messages.create(
+                model=self.model,
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}]
+            )
             
-            if not response or not response.text:
+            if not message or not message.content:
                 return {
                     'purpose': 'Unknown',
                     'suggested_name': filename,
                     'error': 'Empty response from API'
                 }
             
-            # Parse JSON response
-            response_text = response.text.strip()
+            # Extract text from response
+            response_text = message.content[0].text.strip()
             
             # Remove markdown code blocks if present
             if response_text.startswith('```json'):
@@ -547,7 +525,7 @@ Format your response as JSON:
                 'purpose': 'Unknown',
                 'suggested_name': filename,
                 'error': f'Failed to parse AI response: {str(e)}',
-                'raw_response': response.text if response else None
+                'raw_response': message.content[0].text if message else None
             }
         except Exception as e:
             return {
@@ -558,7 +536,7 @@ Format your response as JSON:
     
     def analyze_image(self, image_path: str) -> Dict:
         """
-        Analyze image using Gemini Vision API
+        Analyze image using Claude Vision API
         
         Args:
             image_path: Path to the image file
@@ -567,16 +545,18 @@ Format your response as JSON:
             Dictionary with scene description and suggestions
         """
         try:
-            if not self.vision_model:
+            if not self.client:
                 return {
                     'description': 'Unknown',
                     'suggested_name': Path(image_path).name,
                     'error': 'Vision model not initialized'
                 }
             
-            # Load the image
+            # Read and encode image
+            import base64
             try:
-                img = Image.open(image_path)
+                with open(image_path, 'rb') as f:
+                    image_data = base64.standard_b64encode(f.read()).decode('utf-8')
             except Exception as e:
                 return {
                     'description': 'Unknown',
@@ -584,12 +564,22 @@ Format your response as JSON:
                     'error': f'Could not open image: {str(e)}'
                 }
             
-            # Get current filename
+            # Get current filename and extension
             current_name = Path(image_path).name
-            extension = Path(image_path).suffix
+            extension = Path(image_path).suffix.lower()
+            
+            # Determine media type
+            media_types = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp'
+            }
+            media_type = media_types.get(extension, 'image/jpeg')
             
             # Create prompt for image analysis
-            prompt = f"""Analyze this image and suggest a descriptive filename.
+            text_prompt = f"""Analyze this image and suggest a descriptive filename.
 
 Current filename: {current_name}
 
@@ -607,17 +597,39 @@ Format your response as JSON:
 }}"""
             
             # Generate response with image
-            response = self.vision_model.generate_content([prompt, img])
+            message = self.client.messages.create(
+                model=self.model,
+                max_tokens=1024,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": media_type,
+                                    "data": image_data
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": text_prompt
+                            }
+                        ]
+                    }
+                ]
+            )
             
-            if not response or not response.text:
+            if not message or not message.content:
                 return {
                     'description': 'Unknown',
                     'suggested_name': current_name,
                     'error': 'Empty response from API'
                 }
             
-            # Parse JSON response
-            response_text = response.text.strip()
+            # Extract text from response
+            response_text = message.content[0].text.strip()
             
             # Remove markdown code blocks if present
             if response_text.startswith('```json'):
@@ -644,7 +656,7 @@ Format your response as JSON:
                 'description': 'Unknown',
                 'suggested_name': Path(image_path).name,
                 'error': f'Failed to parse AI response: {str(e)}',
-                'raw_response': response.text if response else None
+                'raw_response': message.content[0].text if message else None
             }
         except Exception as e:
             return {
@@ -655,98 +667,30 @@ Format your response as JSON:
     
     def test_connection(self) -> bool:
         """
-        Test Gemini API connection
+        Test Claude API connection
         
         Returns:
             True if connection successful
         """
         try:
-            if not self.model:
+            if not self.client:
                 return False
             
             # Send a simple test prompt
-            response = self.model.generate_content("Hello, respond with 'OK' if you can read this.")
+            message = self.client.messages.create(
+                model=self.model,
+                max_tokens=50,
+                messages=[{"role": "user", "content": "Hello, respond with 'OK' if you can read this."}]
+            )
             
             # Check if we got a valid response
-            if response and response.text:
+            if message and message.content:
                 return True
             return False
             
         except Exception as e:
-            print(f"Gemini connection test failed: {str(e)}")
+            print(f"Claude connection test failed: {str(e)}")
             return False
-
-
-class ClaudeService(AIServiceInterface):
-    """Anthropic Claude AI service implementation (stub for future migration)"""
-    
-    def __init__(self, api_key: str):
-        """
-        Initialize Claude service
-        
-        Args:
-            api_key: Anthropic Claude API key
-        """
-        self.api_key = api_key
-        self.client = None
-        # Claude initialization will be implemented when migrating from Gemini
-    
-    def analyze_filenames(self, filenames: List[str]) -> Dict:
-        """
-        Analyze filenames using Claude API (stub)
-        
-        Args:
-            filenames: List of filenames to analyze
-            
-        Returns:
-            Dictionary with cluster information
-        """
-        return {
-            'clusters': [],
-            'error': 'Claude service not yet implemented'
-        }
-    
-    def analyze_text_content(self, filename: str, text_preview: str) -> Dict:
-        """
-        Analyze text content using Claude API (stub)
-        
-        Args:
-            filename: Original filename
-            text_preview: Preview of text content
-            
-        Returns:
-            Dictionary with analysis results
-        """
-        return {
-            'purpose': 'Unknown',
-            'suggested_name': filename,
-            'error': 'Claude service not yet implemented'
-        }
-    
-    def analyze_image(self, image_path: str) -> Dict:
-        """
-        Analyze image using Claude Vision API (stub)
-        
-        Args:
-            image_path: Path to the image file
-            
-        Returns:
-            Dictionary with scene description and suggestions
-        """
-        return {
-            'description': 'Unknown',
-            'suggested_name': Path(image_path).name,
-            'error': 'Claude service not yet implemented'
-        }
-    
-    def test_connection(self) -> bool:
-        """
-        Test Claude API connection (stub)
-        
-        Returns:
-            False (not implemented)
-        """
-        return False
 
 
 class AIServiceFactory:
@@ -767,9 +711,7 @@ class AIServiceFactory:
         Raises:
             ValueError: If provider is not supported
         """
-        if provider == AIProvider.GEMINI:
-            return GeminiService(api_key)
-        elif provider == AIProvider.CLAUDE:
+        if provider == AIProvider.CLAUDE:
             return ClaudeService(api_key)
         else:
             raise ValueError(f"Unsupported AI provider: {provider}")
@@ -1759,17 +1701,17 @@ class ToolTip:
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
         
-        # Modern tooltip styling
+        # Yellow Jacket tooltip styling
         label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                        background="#37474F", foreground="#FFFFFF",
-                        relief=tk.FLAT, borderwidth=0,
-                        font=("Segoe UI", 9),
+                        background="#003057", foreground="#EAAA00",
+                        relief=tk.SOLID, borderwidth=2,
+                        font=("Segoe UI", 9, 'bold'),
                         padx=12, pady=8)
         label.pack()
         
         # Add subtle shadow effect (Windows only)
         try:
-            tw.attributes('-alpha', 0.95)
+            tw.attributes('-alpha', 0.96)
         except:
             pass
     
@@ -1800,8 +1742,7 @@ class FileJanitorApp:
         self.config = AIConfig.load_config()
         
         # AI service configuration
-        provider_str = self.config.get('provider', 'gemini')
-        self.ai_provider = AIProvider.GEMINI if provider_str == 'gemini' else AIProvider.CLAUDE
+        self.ai_provider = AIProvider.CLAUDE
         self.ai_service = None  # Will be initialized when API key is provided
         
         self.setup_gui()
@@ -1810,9 +1751,12 @@ class FileJanitorApp:
     def setup_gui(self):
         """Set up the basic Tkinter GUI framework"""
         # Configure main window
-        self.root.title("🧹 Intelligent File Janitor")
-        self.root.geometry("950x750")
-        self.root.minsize(750, 550)
+        self.root.title("🐝 Buzz Sort - AI File Organization")
+        self.root.geometry("1000x800")
+        self.root.minsize(800, 600)
+        
+        # Set window background to GT Diploma color
+        self.root.configure(bg='#F9F6E5')
         
         # Create menu bar
         menubar = tk.Menu(self.root)
@@ -1840,37 +1784,48 @@ class FileJanitorApp:
         style = ttk.Style()
         style.theme_use('clam')  # Modern theme
         
-        # Color scheme - Modern blue/green palette
-        PRIMARY_COLOR = '#2196F3'      # Blue
-        SUCCESS_COLOR = '#4CAF50'      # Green
-        WARNING_COLOR = '#FF9800'      # Orange
-        DANGER_COLOR = '#F44336'       # Red
-        TEXT_COLOR = '#212121'         # Dark gray
+        # Georgia Tech Yellow Jacket Color Scheme
+        TECH_GOLD = '#B3A369'          # Primary - Tech Gold
+        BUZZ_GOLD = '#EAAA00'          # Secondary - Buzz Gold (vibrant)
+        NAVY_BLUE = '#003057'          # Primary - Navy Blue
+        TECH_MEDIUM_GOLD = '#A4925A'   # Accessible gold for large text
+        TECH_DARK_GOLD = '#857437'     # Accessible gold for small text
+        GRAY_MATTER = '#54585A'        # Neutral dark gray
+        PI_MILE = '#D6DBD4'            # Light warm gray
+        DIPLOMA = '#F9F6E5'            # Light ivory yellow
+        WHITE = '#FFFFFF'              # White
         
-        # Custom button styles with colors
+        # Custom button styles with Yellow Jacket colors
         style.configure('Primary.TButton', 
-                       font=('Segoe UI', 10, 'bold'),
-                       foreground=PRIMARY_COLOR,
-                       padding=8)
+                       font=('Segoe UI', 11, 'bold'),
+                       foreground=NAVY_BLUE,
+                       background=BUZZ_GOLD,
+                       padding=10)
         style.map('Primary.TButton',
-                 background=[('active', '#E3F2FD')])
+                 background=[('active', TECH_GOLD), ('pressed', TECH_DARK_GOLD)])
         
         style.configure('Success.TButton', 
-                       font=('Segoe UI', 10, 'bold'),
-                       foreground=SUCCESS_COLOR,
-                       padding=8)
+                       font=('Segoe UI', 11, 'bold'),
+                       foreground=WHITE,
+                       background=NAVY_BLUE,
+                       padding=10)
         style.map('Success.TButton',
-                 background=[('active', '#E8F5E9')])
+                 background=[('active', '#004577'), ('pressed', '#002040')])
         
         style.configure('Warning.TButton', 
-                       font=('Segoe UI', 10, 'bold'),
-                       foreground=WARNING_COLOR,
-                       padding=8)
+                       font=('Segoe UI', 11, 'bold'),
+                       foreground=NAVY_BLUE,
+                       background=BUZZ_GOLD,
+                       padding=10)
         style.map('Warning.TButton',
-                 background=[('active', '#FFF3E0')])
+                 background=[('active', TECH_GOLD), ('pressed', TECH_DARK_GOLD)])
         
-        # Frame and label styles
-        style.configure('TLabelframe.Label', font=('Segoe UI', 10, 'bold'))
+        # Frame and label styles with GT colors
+        style.configure('TLabelframe', background=DIPLOMA, borderwidth=2, relief='solid')
+        style.configure('TLabelframe.Label', 
+                       font=('Segoe UI', 11, 'bold'),
+                       foreground=NAVY_BLUE,
+                       background=DIPLOMA)
         
         # Bind keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.select_folder())
@@ -1891,15 +1846,17 @@ class FileJanitorApp:
         main_frame.rowconfigure(2, weight=1)
         main_frame.rowconfigure(4, weight=1)
         
-        # Header section with icon and title
-        header_frame = ttk.Frame(main_frame)
-        header_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
+        # Header section with Yellow Jacket branding
+        header_frame = tk.Frame(main_frame, bg='#003057', relief='raised', borderwidth=2)
+        header_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 20))
+        header_frame.grid_columnconfigure(1, weight=1)
         
-        ttk.Label(header_frame, text="🧹", font=('Arial', 24)).grid(row=0, column=0, padx=(0, 10))
-        ttk.Label(header_frame, text="Intelligent File Janitor", 
-                 font=('Segoe UI', 16, 'bold'), foreground='#2196F3').grid(row=0, column=1, sticky=tk.W)
-        ttk.Label(header_frame, text="AI-powered file organization", 
-                 font=('Segoe UI', 9), foreground='#757575').grid(row=1, column=1, sticky=tk.W)
+        # Yellow Jacket icon and branding
+        tk.Label(header_frame, text="🐝", font=('Arial', 32), bg='#003057').grid(row=0, column=0, padx=15, pady=10)
+        tk.Label(header_frame, text="BUZZ SORT", 
+                 font=('Segoe UI', 22, 'bold'), foreground='#EAAA00', bg='#003057').grid(row=0, column=1, sticky=tk.W, pady=10)
+        tk.Label(header_frame, text="AI-Powered File Organization  •  Georgia Tech", 
+                 font=('Segoe UI', 10), foreground='#B3A369', bg='#003057').grid(row=1, column=1, sticky=tk.W, padx=(0, 15))
         
         # Separator
         ttk.Separator(main_frame, orient='horizontal').grid(row=1, column=0, columnspan=2, 
@@ -1939,18 +1896,18 @@ class FileJanitorApp:
         self.analysis_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         analysis_scroll.config(command=self.analysis_text.yview)
         
-        # Configure text tags with modern color scheme
-        self.analysis_text.tag_configure('header', font=('Segoe UI', 11, 'bold'), foreground='#2196F3')
-        self.analysis_text.tag_configure('subheader', font=('Segoe UI', 10, 'bold'), foreground='#424242')
-        self.analysis_text.tag_configure('highlight', foreground='#4CAF50', font=('Consolas', 9, 'bold'))
-        self.analysis_text.tag_configure('warning', foreground='#FF9800', font=('Consolas', 9, 'bold'))
-        self.analysis_text.tag_configure('error', foreground='#F44336', font=('Consolas', 9, 'bold'))
-        self.analysis_text.tag_configure('info', foreground='#2196F3')
-        self.analysis_text.tag_configure('muted', foreground='#9E9E9E')
+        # Configure text tags with Yellow Jacket color scheme
+        self.analysis_text.tag_configure('header', font=('Segoe UI', 12, 'bold'), foreground='#003057')
+        self.analysis_text.tag_configure('subheader', font=('Segoe UI', 10, 'bold'), foreground='#857437')
+        self.analysis_text.tag_configure('highlight', foreground='#EAAA00', font=('Consolas', 10, 'bold'))
+        self.analysis_text.tag_configure('warning', foreground='#B3A369', font=('Consolas', 9, 'bold'))
+        self.analysis_text.tag_configure('error', foreground='#8B0000', font=('Consolas', 9, 'bold'))
+        self.analysis_text.tag_configure('info', foreground='#003057')
+        self.analysis_text.tag_configure('muted', foreground='#54585A')
         
         # File filtering section (initially hidden)
         self.filter_frame = ttk.LabelFrame(main_frame, text="Select Files to Organize", padding="10")
-        self.filter_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 10))
+        self.filter_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 15))
         self.filter_frame.columnconfigure(0, weight=1)
         self.filter_frame.grid_remove()  # Hidden until analysis complete
         
@@ -1977,15 +1934,15 @@ class FileJanitorApp:
         self.plan_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         plan_scroll.config(command=self.plan_text.yview)
         
-        # Configure text tags with modern color scheme
-        self.plan_text.tag_configure('header', font=('Segoe UI', 11, 'bold'), foreground='#FF9800')
-        self.plan_text.tag_configure('subheader', font=('Segoe UI', 10, 'bold'), foreground='#424242')
-        self.plan_text.tag_configure('success', foreground='#4CAF50', font=('Consolas', 9, 'bold'))
-        self.plan_text.tag_configure('warning', foreground='#FF9800', font=('Consolas', 9, 'bold'))
-        self.plan_text.tag_configure('error', foreground='#F44336', font=('Consolas', 9, 'bold'))
-        self.plan_text.tag_configure('folder', foreground='#2196F3', font=('Consolas', 9, 'bold'))
-        self.plan_text.tag_configure('file', foreground='#757575')
-        self.plan_text.tag_configure('arrow', foreground='#9E9E9E')
+        # Configure text tags with Yellow Jacket color scheme
+        self.plan_text.tag_configure('header', font=('Segoe UI', 12, 'bold'), foreground='#003057')
+        self.plan_text.tag_configure('subheader', font=('Segoe UI', 10, 'bold'), foreground='#857437')
+        self.plan_text.tag_configure('success', foreground='#006400', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('warning', foreground='#B3A369', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('error', foreground='#8B0000', font=('Consolas', 9, 'bold'))
+        self.plan_text.tag_configure('folder', foreground='#EAAA00', font=('Consolas', 10, 'bold'))
+        self.plan_text.tag_configure('file', foreground='#54585A')
+        self.plan_text.tag_configure('arrow', foreground='#A4925A')
         
         # Action buttons with better spacing and styling
         button_frame = ttk.Frame(main_frame)
@@ -2010,31 +1967,34 @@ class FileJanitorApp:
         self.progress_frame.columnconfigure(0, weight=1)
         
         self.progress_label = ttk.Label(self.progress_frame, text="", 
-                                       font=('Segoe UI', 9), foreground='#2196F3')
-        self.progress_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+                                       font=('Segoe UI', 10, 'bold'), foreground='#003057')
+        self.progress_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 8))
         
-        # Style the progress bar
-        style.configure('Custom.Horizontal.TProgressbar', 
-                       troughcolor='#E0E0E0',
-                       background='#4CAF50',
-                       thickness=20)
+        # Style the progress bar with Yellow Jacket colors
+        style.configure('Buzz.Horizontal.TProgressbar', 
+                       troughcolor='#D6DBD4',
+                       background='#EAAA00',
+                       thickness=24,
+                       borderwidth=2,
+                       relief='raised')
         
         self.progress_bar = ttk.Progressbar(self.progress_frame, 
                                            mode='determinate',
-                                           style='Custom.Horizontal.TProgressbar')
+                                           style='Buzz.Horizontal.TProgressbar')
         self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E))
         
         # Hide progress bar initially
         self.progress_frame.grid_remove()
         
-        # Status bar with modern styling
+        # Status bar with Yellow Jacket styling
         self.status_var = tk.StringVar()
-        self.status_var.set("✨ Ready - Select a folder to begin")
-        status_bar = ttk.Label(main_frame, textvariable=self.status_var, 
-                              relief='sunken', anchor=tk.W,
-                              foreground='#1976D2',
-                              font=('Segoe UI', 9))
-        status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        self.status_var.set("🐝 Ready - Select a folder to begin organizing")
+        status_bar = tk.Label(main_frame, textvariable=self.status_var, 
+                            relief='flat', anchor=tk.W,
+                            bg='#003057', fg='#EAAA00',
+                            font=('Segoe UI', 10, 'bold'),
+                            padx=15, pady=8)
+        status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
     
     def _create_tooltip(self, widget, text):
         """Create a tooltip for a widget"""

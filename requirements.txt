@@ -1,7 +1,7 @@
-# Intelligent File Janitor Dependencies
+# Buzz Sort - AI File Organization
+# Georgia Tech Yellow Jacket Edition
 
 # AI Services
-google-generativeai>=0.8.0
 anthropic>=0.39.0
 
 # Image Processing
