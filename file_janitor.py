@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
 import stat
+import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
@@ -1216,6 +1217,302 @@ class OrganizationPlanner:
         return self.plan
 
 
+class PlanExecutor:
+    """Executes file organization plans with safety features"""
+    
+    def __init__(self):
+        self.execution_log = []
+        self.errors = []
+    
+    def execute_plan(self, plan: Dict, base_path: str, dry_run: bool = True) -> Dict:
+        """
+        Execute the organization plan with optional dry-run mode
+        
+        Args:
+            plan: Organization plan dictionary from OrganizationPlanner
+            base_path: Base directory path where operations will be performed
+            dry_run: If True, simulate operations without making changes
+            
+        Returns:
+            Dictionary with execution results
+        """
+        self.execution_log = []
+        self.errors = []
+        
+        try:
+            if not plan:
+                return {
+                    'success': False,
+                    'error': 'No plan provided',
+                    'operations_completed': 0,
+                    'operations_failed': 0,
+                    'log': []
+                }
+            
+            folders_to_create = plan.get('folders_to_create', [])
+            file_operations = plan.get('file_operations', [])
+            
+            # Step 1: Create folders
+            folders_created = 0
+            for folder in folders_to_create:
+                if self.create_folder(base_path, folder, dry_run):
+                    folders_created += 1
+            
+            # Step 2: Execute file operations
+            operations_completed = 0
+            operations_failed = 0
+            
+            for operation in file_operations:
+                success = self._execute_file_operation(base_path, operation, dry_run)
+                if success:
+                    operations_completed += 1
+                else:
+                    operations_failed += 1
+            
+            # Generate result summary
+            result = {
+                'success': operations_failed == 0,
+                'dry_run': dry_run,
+                'folders_created': folders_created,
+                'operations_completed': operations_completed,
+                'operations_failed': operations_failed,
+                'total_operations': len(file_operations),
+                'log': self.execution_log.copy(),
+                'errors': self.errors.copy()
+            }
+            
+            return result
+            
+        except Exception as e:
+            self.errors.append(f"Critical error during execution: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'operations_completed': 0,
+                'operations_failed': len(file_operations) if 'file_operations' in locals() else 0,
+                'log': self.execution_log.copy(),
+                'errors': self.errors.copy()
+            }
+    
+    def create_folder(self, base_path: str, folder_name: str, dry_run: bool = True) -> bool:
+        """
+        Create a folder in the base path
+        
+        Args:
+            base_path: Base directory path
+            folder_name: Name of folder to create
+            dry_run: If True, simulate without creating
+            
+        Returns:
+            True if successful (or would be successful in dry-run)
+        """
+        try:
+            folder_path = Path(base_path) / folder_name
+            
+            if dry_run:
+                # Simulate folder creation
+                if folder_path.exists():
+                    self.execution_log.append(f"[DRY-RUN] Folder already exists: {folder_name}")
+                else:
+                    self.execution_log.append(f"[DRY-RUN] Would create folder: {folder_name}")
+                return True
+            else:
+                # Actually create the folder
+                if folder_path.exists():
+                    self.execution_log.append(f"Folder already exists: {folder_name}")
+                    return True
+                
+                folder_path.mkdir(parents=True, exist_ok=True)
+                self.execution_log.append(f"Created folder: {folder_name}")
+                return True
+                
+        except PermissionError as e:
+            error_msg = f"Permission denied creating folder '{folder_name}': {str(e)}"
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+        except Exception as e:
+            error_msg = f"Failed to create folder '{folder_name}': {str(e)}"
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+    
+    def move_file(self, source_path: str, destination_path: str, dry_run: bool = True) -> bool:
+        """
+        Move a file from source to destination
+        
+        Args:
+            source_path: Source file path
+            destination_path: Destination file path
+            dry_run: If True, simulate without moving
+            
+        Returns:
+            True if successful (or would be successful in dry-run)
+        """
+        try:
+            source = Path(source_path)
+            destination = Path(destination_path)
+            
+            # Validate source exists
+            if not source.exists():
+                error_msg = f"Source file does not exist: {source_path}"
+                self.errors.append(error_msg)
+                self.execution_log.append(f"[ERROR] {error_msg}")
+                return False
+            
+            # Check if destination already exists
+            if destination.exists():
+                error_msg = f"Destination file already exists: {destination_path}"
+                self.errors.append(error_msg)
+                self.execution_log.append(f"[ERROR] {error_msg}")
+                return False
+            
+            if dry_run:
+                # Simulate move
+                self.execution_log.append(f"[DRY-RUN] Would move: {source.name} -> {destination}")
+                return True
+            else:
+                # Ensure destination directory exists
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                
+                # Actually move the file
+                import shutil
+                shutil.move(str(source), str(destination))
+                self.execution_log.append(f"Moved: {source.name} -> {destination}")
+                return True
+                
+        except PermissionError as e:
+            error_msg = f"Permission denied moving file '{source_path}': {str(e)}"
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+        except Exception as e:
+            error_msg = f"Failed to move file '{source_path}': {str(e)}"
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+    
+    def rename_file(self, file_path: str, new_name: str, dry_run: bool = True) -> bool:
+        """
+        Rename a file
+        
+        Args:
+            file_path: Current file path
+            new_name: New filename (not full path, just the name)
+            dry_run: If True, simulate without renaming
+            
+        Returns:
+            True if successful (or would be successful in dry-run)
+        """
+        try:
+            source = Path(file_path)
+            destination = source.parent / new_name
+            
+            # Validate source exists
+            if not source.exists():
+                error_msg = f"Source file does not exist: {file_path}"
+                self.errors.append(error_msg)
+                self.execution_log.append(f"[ERROR] {error_msg}")
+                return False
+            
+            # Check if destination already exists
+            if destination.exists() and destination != source:
+                error_msg = f"File with new name already exists: {new_name}"
+                self.errors.append(error_msg)
+                self.execution_log.append(f"[ERROR] {error_msg}")
+                return False
+            
+            if dry_run:
+                # Simulate rename
+                self.execution_log.append(f"[DRY-RUN] Would rename: {source.name} -> {new_name}")
+                return True
+            else:
+                # Actually rename the file
+                source.rename(destination)
+                self.execution_log.append(f"Renamed: {source.name} -> {new_name}")
+                return True
+                
+        except PermissionError as e:
+            error_msg = f"Permission denied renaming file '{file_path}': {str(e)}"
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+        except Exception as e:
+            error_msg = f"Failed to rename file '{file_path}': {str(e)}"
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+    
+    def _execute_file_operation(self, base_path: str, operation: Dict, dry_run: bool = True) -> bool:
+        """
+        Execute a single file operation
+        
+        Args:
+            base_path: Base directory path
+            operation: File operation dictionary
+            dry_run: If True, simulate without executing
+            
+        Returns:
+            True if successful
+        """
+        try:
+            action = operation.get('action', 'move')
+            source_path = operation.get('source', '')
+            destination_folder = operation.get('destination_folder', '')
+            original_name = operation.get('original_name', '')
+            new_name = operation.get('new_name', original_name)
+            
+            if not source_path:
+                self.errors.append("Operation missing source path")
+                return False
+            
+            # Build destination path
+            dest_folder_path = Path(base_path) / destination_folder
+            dest_file_path = dest_folder_path / new_name
+            
+            # Determine operation type
+            needs_rename = new_name != original_name
+            needs_move = Path(source_path).parent != dest_folder_path
+            
+            if needs_move and needs_rename:
+                # Move and rename in one operation
+                return self.move_file(source_path, str(dest_file_path), dry_run)
+            elif needs_move:
+                # Just move
+                return self.move_file(source_path, str(dest_file_path), dry_run)
+            elif needs_rename:
+                # Just rename
+                return self.rename_file(source_path, new_name, dry_run)
+            else:
+                # No operation needed
+                self.execution_log.append(f"[SKIP] File already in correct location: {original_name}")
+                return True
+                
+        except Exception as e:
+            error_msg = f"Failed to execute operation: {str(e)}"
+            self.errors.append(error_msg)
+            self.execution_log.append(f"[ERROR] {error_msg}")
+            return False
+    
+    def get_execution_log(self) -> List[str]:
+        """
+        Get the execution log
+        
+        Returns:
+            List of log messages
+        """
+        return self.execution_log.copy()
+    
+    def get_errors(self) -> List[str]:
+        """
+        Get the list of errors
+        
+        Returns:
+            List of error messages
+        """
+        return self.errors.copy()
+
+
 class FileJanitorApp:
     """Main application class for the Intelligent File Janitor"""
     
@@ -1224,6 +1521,7 @@ class FileJanitorApp:
         self.selected_folder = None
         self.scanner = FileScanner()
         self.planner = OrganizationPlanner()
+        self.executor = PlanExecutor()
         self.scanned_files = []
         self.current_plan = None
         
@@ -1326,12 +1624,28 @@ class FileJanitorApp:
                                        command=self.execute_plan, state=tk.DISABLED)
         self.execute_button.grid(row=0, column=1)
         
+        # Progress bar (initially hidden)
+        self.progress_frame = ttk.Frame(main_frame)
+        self.progress_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), 
+                                pady=(10, 0))
+        self.progress_frame.columnconfigure(0, weight=1)
+        
+        self.progress_label = ttk.Label(self.progress_frame, text="")
+        self.progress_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.progress_bar = ttk.Progressbar(self.progress_frame, mode='determinate', 
+                                           length=300)
+        self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        # Hide progress bar initially
+        self.progress_frame.grid_remove()
+        
         # Status bar
         self.status_var = tk.StringVar()
         self.status_var.set("Ready - Select a folder to begin")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, 
                              relief="sunken", anchor=tk.W)
-        status_bar.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), 
+        status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), 
                        pady=(10, 0))
     
     def select_folder(self):
@@ -1699,10 +2013,161 @@ class FileJanitorApp:
         self.analysis_text.config(state=tk.DISABLED)
     
     def execute_plan(self):
-        """Placeholder for plan execution functionality"""
-        self.status_var.set("Plan execution functionality will be implemented in future tasks")
-        messagebox.showinfo("Not Implemented", 
-                          "Plan execution will be implemented in task 5.")
+        """Execute the organization plan with safety confirmations"""
+        if not self.current_plan:
+            messagebox.showerror("No Plan", "No organization plan available to execute.")
+            return
+        
+        if self.current_plan.get('error'):
+            messagebox.showerror("Invalid Plan", 
+                               f"Cannot execute plan with errors: {self.current_plan.get('error')}")
+            return
+        
+        if not self.selected_folder:
+            messagebox.showerror("No Folder", "No folder selected for organization.")
+            return
+        
+        # Show mandatory safety confirmation dialog
+        file_count = len(self.current_plan.get('file_operations', []))
+        folder_count = len(self.current_plan.get('folders_to_create', []))
+        
+        confirmation_message = (
+            "⚠️  WARNING: FILE OPERATIONS CANNOT BE UNDONE! ⚠️\n\n"
+            f"This will:\n"
+            f"  • Create {folder_count} new folder(s)\n"
+            f"  • Move/rename {file_count} file(s)\n\n"
+            f"Target directory: {self.selected_folder}\n\n"
+            "Are you absolutely sure you want to proceed?\n\n"
+            "Click 'Yes' to execute the plan.\n"
+            "Click 'No' to cancel."
+        )
+        
+        response = messagebox.askyesno(
+            "⚠️  Confirm File Operations", 
+            confirmation_message,
+            icon='warning'
+        )
+        
+        if not response:
+            self.status_var.set("Plan execution cancelled by user")
+            return
+        
+        # Disable buttons during execution
+        self.execute_button.config(state=tk.DISABLED)
+        self.analyze_button.config(state=tk.DISABLED)
+        
+        # Show progress bar
+        self.progress_frame.grid()
+        self.progress_label.config(text="Executing plan...")
+        self.progress_bar['value'] = 0
+        self.progress_bar['maximum'] = file_count + folder_count
+        self.root.update_idletasks()
+        
+        try:
+            # Execute the plan (not dry-run)
+            result = self.executor.execute_plan(
+                self.current_plan, 
+                self.selected_folder, 
+                dry_run=False
+            )
+            
+            # Update progress bar to completion
+            self.progress_bar['value'] = self.progress_bar['maximum']
+            self.root.update_idletasks()
+            
+            # Display execution results
+            self._display_execution_results(result)
+            
+            # Show summary dialog
+            if result.get('success'):
+                summary_message = (
+                    f"✅ Plan executed successfully!\n\n"
+                    f"Folders created: {result.get('folders_created', 0)}\n"
+                    f"Files organized: {result.get('operations_completed', 0)}\n"
+                    f"Operations failed: {result.get('operations_failed', 0)}\n\n"
+                    "Check the plan area for detailed execution log."
+                )
+                messagebox.showinfo("Execution Complete", summary_message)
+                self.status_var.set(
+                    f"Plan executed: {result.get('operations_completed', 0)} files organized"
+                )
+            else:
+                error_count = result.get('operations_failed', 0)
+                summary_message = (
+                    f"⚠️  Plan executed with errors\n\n"
+                    f"Folders created: {result.get('folders_created', 0)}\n"
+                    f"Files organized: {result.get('operations_completed', 0)}\n"
+                    f"Operations failed: {error_count}\n\n"
+                    "Check the plan area for detailed error log."
+                )
+                messagebox.showwarning("Execution Completed with Errors", summary_message)
+                self.status_var.set(
+                    f"Plan executed with {error_count} error(s)"
+                )
+            
+        except Exception as e:
+            messagebox.showerror(
+                "Execution Error", 
+                f"An unexpected error occurred during execution:\n\n{str(e)}"
+            )
+            self.status_var.set("Plan execution failed")
+        
+        finally:
+            # Hide progress bar
+            self.progress_frame.grid_remove()
+            
+            # Re-enable buttons
+            self.analyze_button.config(state=tk.NORMAL)
+            # Keep execute button disabled - user needs to re-analyze
+            self.execute_button.config(state=tk.DISABLED)
+            
+            # Clear current plan to prevent re-execution
+            self.current_plan = None
+    
+    def _display_execution_results(self, result: Dict):
+        """
+        Display execution results in the plan text area
+        
+        Args:
+            result: Execution result dictionary from PlanExecutor
+        """
+        self.plan_text.config(state=tk.NORMAL)
+        self.plan_text.delete(1.0, tk.END)
+        
+        # Header
+        self.plan_text.insert(tk.END, "=" * 60 + "\n")
+        self.plan_text.insert(tk.END, "EXECUTION RESULTS\n")
+        self.plan_text.insert(tk.END, "=" * 60 + "\n\n")
+        
+        # Summary
+        self.plan_text.insert(tk.END, "Summary:\n")
+        self.plan_text.insert(tk.END, f"  Status: {'✅ Success' if result.get('success') else '⚠️  Completed with errors'}\n")
+        self.plan_text.insert(tk.END, f"  Folders created: {result.get('folders_created', 0)}\n")
+        self.plan_text.insert(tk.END, f"  Operations completed: {result.get('operations_completed', 0)}\n")
+        self.plan_text.insert(tk.END, f"  Operations failed: {result.get('operations_failed', 0)}\n")
+        self.plan_text.insert(tk.END, f"  Total operations: {result.get('total_operations', 0)}\n\n")
+        
+        # Execution log
+        execution_log = result.get('log', [])
+        if execution_log:
+            self.plan_text.insert(tk.END, "Execution Log:\n")
+            self.plan_text.insert(tk.END, "-" * 60 + "\n")
+            for log_entry in execution_log:
+                self.plan_text.insert(tk.END, f"{log_entry}\n")
+            self.plan_text.insert(tk.END, "\n")
+        
+        # Errors
+        errors = result.get('errors', [])
+        if errors:
+            self.plan_text.insert(tk.END, "Errors:\n")
+            self.plan_text.insert(tk.END, "-" * 60 + "\n")
+            for error in errors:
+                self.plan_text.insert(tk.END, f"❌ {error}\n")
+            self.plan_text.insert(tk.END, "\n")
+        
+        self.plan_text.insert(tk.END, "=" * 60 + "\n")
+        
+        self.plan_text.config(state=tk.DISABLED)
     
     def _initialize_ai_service(self):
         """Initialize AI service based on current provider and API key"""
