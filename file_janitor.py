@@ -1755,7 +1755,15 @@ class BuzzSortApp:
         """Set up the basic Tkinter GUI framework"""
         # Configure main window
         self.root.title("🐝 Buzz Sort - AI File Organization")
-        self.root.geometry("1000x800")
+        
+        # Start maximized
+        self.root.state('zoomed')  # Windows
+        # For cross-platform compatibility
+        try:
+            self.root.attributes('-zoomed', True)  # Linux
+        except:
+            pass
+        
         self.root.minsize(800, 600)
         
         # Set window background to GT Diploma color
@@ -2037,7 +2045,7 @@ class BuzzSortApp:
         )
         instruction_label.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 10))
         
-        # Create filter options (3 suggestions + All Files)
+        # Create filter options (3 suggestions + All Files = 4 buttons)
         if not self.date_suggestions:
             # Create basic file type filters
             file_types = self.scanner.group_by_type(self.scanned_files)
@@ -2053,13 +2061,24 @@ class BuzzSortApp:
                         'priority': 'medium'
                     })
             
-            # Limit to 3 suggestions
+            # Ensure we have exactly 3 suggestions
+            while len(suggestions) < 3:
+                suggestions.append({
+                    'title': 'Other',
+                    'description': 'Other files',
+                    'file_count': 0,
+                    'files': [],
+                    'priority': 'low'
+                })
             suggestions = suggestions[:3]
         else:
             suggestions = self.date_suggestions[:3]
         
-        # Add the 3 filter options + All Files in one row (4 columns)
+        # Add the 3 filter options in one row
         for i, suggestion in enumerate(suggestions):
+            if suggestion['file_count'] == 0:
+                continue  # Skip empty suggestions
+                
             priority_icon = "🔥" if suggestion['priority'] == 'high' else "⭐" if suggestion['priority'] == 'medium' else "📋"
             btn_text = f"{priority_icon} {suggestion['title']}\n({suggestion['file_count']} files)"
             
@@ -2080,12 +2099,11 @@ class BuzzSortApp:
             
             self._create_tooltip(btn, tooltip_text)
         
-        # Add "All Files" as the 4th button
+        # Add "All Files" as the 4th button - ALWAYS SHOW THIS
         all_files_btn = ttk.Button(
             self.filter_buttons_frame,
             text=f"📁 All Files\n({len(self.scanned_files)} files)",
             command=lambda: self._select_file_filter(self.scanned_files, "All Files"),
-            style='Primary.TButton',
             width=15
         )
         all_files_btn.grid(row=1, column=3, padx=2, pady=3)
