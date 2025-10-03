@@ -1798,11 +1798,12 @@ class FileJanitorApp:
         # Custom button styles with Yellow Jacket colors
         style.configure('Primary.TButton', 
                        font=('Segoe UI', 11, 'bold'),
-                       foreground=NAVY_BLUE,
+                       foreground='#000000',  # Black text for maximum readability
                        background=BUZZ_GOLD,
                        padding=10)
         style.map('Primary.TButton',
-                 background=[('active', TECH_GOLD), ('pressed', TECH_DARK_GOLD)])
+                 foreground=[('disabled', '#666666')],
+                 background=[('active', TECH_GOLD), ('pressed', TECH_DARK_GOLD), ('disabled', '#CCCCCC')])
         
         style.configure('Success.TButton', 
                        font=('Segoe UI', 11, 'bold'),
@@ -1814,11 +1815,12 @@ class FileJanitorApp:
         
         style.configure('Warning.TButton', 
                        font=('Segoe UI', 11, 'bold'),
-                       foreground=NAVY_BLUE,
+                       foreground='#000000',  # Black text for maximum readability
                        background=BUZZ_GOLD,
                        padding=10)
         style.map('Warning.TButton',
-                 background=[('active', TECH_GOLD), ('pressed', TECH_DARK_GOLD)])
+                 foreground=[('disabled', '#666666')],
+                 background=[('active', TECH_GOLD), ('pressed', TECH_DARK_GOLD), ('disabled', '#CCCCCC')])
         
         # Frame and label styles with GT colors
         style.configure('TLabelframe', background=DIPLOMA, borderwidth=2, relief='solid')
@@ -1874,7 +1876,7 @@ class FileJanitorApp:
         self._create_tooltip(self.browse_button, "Select a folder to organize (Ctrl+O)")
         
         self.folder_label = ttk.Label(folder_card, text="No folder selected", 
-                                     foreground="#9E9E9E", font=('Segoe UI', 9, 'italic'))
+                                     foreground="#54585A", font=('Segoe UI', 10))
         self.folder_label.grid(row=0, column=1, sticky=(tk.W, tk.E))
         
         # Analysis results section in a card
@@ -2027,8 +2029,8 @@ class FileJanitorApp:
         instruction_label = ttk.Label(
             self.filter_buttons_frame,
             text="Choose which files to organize:",
-            font=('Arial', 9, 'italic'),
-            foreground='#666666'
+            font=('Segoe UI', 10, 'bold'),
+            foreground='#000000'
         )
         instruction_label.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10))
         
