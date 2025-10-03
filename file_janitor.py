@@ -301,7 +301,7 @@ class ClaudeService(AIServiceInterface):
             api_key: Anthropic Claude API key
         """
         self.api_key = api_key
-        self.model = "claude-3-5-sonnet-20241022"  # Latest Claude 3.5 Sonnet
+        self.model = "claude-sonnet-4-5-20250929"  # Claude 4.5 Sonnet
         self.client = None
         self._initialize_client()
     
@@ -2082,11 +2082,18 @@ class BuzzSortApp:
             priority_icon = "🔥" if suggestion['priority'] == 'high' else "⭐" if suggestion['priority'] == 'medium' else "📋"
             btn_text = f"{priority_icon} {suggestion['title']}\n({suggestion['file_count']} files)"
             
-            btn = ttk.Button(
+            btn = tk.Button(
                 self.filter_buttons_frame,
                 text=btn_text,
                 command=lambda s=suggestion: self._select_file_filter(s['files'], s['title']),
-                width=15
+                width=15,
+                wraplength=120,
+                bg='#EAAA00',
+                fg='#000000',
+                font=('Segoe UI', 9, 'bold'),
+                relief=tk.RAISED,
+                bd=2,
+                cursor='hand2'
             )
             
             btn.grid(row=1, column=i, padx=2, pady=3)
@@ -2100,11 +2107,18 @@ class BuzzSortApp:
             self._create_tooltip(btn, tooltip_text)
         
         # Add "All Files" as the 4th button - ALWAYS SHOW THIS
-        all_files_btn = ttk.Button(
+        all_files_btn = tk.Button(
             self.filter_buttons_frame,
             text=f"📁 All Files\n({len(self.scanned_files)} files)",
             command=lambda: self._select_file_filter(self.scanned_files, "All Files"),
-            width=15
+            width=15,
+            wraplength=120,
+            bg='#B3A369',
+            fg='#000000',
+            font=('Segoe UI', 9, 'bold'),
+            relief=tk.RAISED,
+            bd=2,
+            cursor='hand2'
         )
         all_files_btn.grid(row=1, column=3, padx=2, pady=3)
         self._create_tooltip(all_files_btn, f"Organize all {len(self.scanned_files)} files\nMay be processed in batches if >100 files")
