@@ -1759,10 +1759,19 @@ class ToolTip:
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
         
+        # Modern tooltip styling
         label = tk.Label(tw, text=self.text, justify=tk.LEFT,
-                        background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-                        font=("Arial", 9))
-        label.pack(ipadx=5, ipady=3)
+                        background="#37474F", foreground="#FFFFFF",
+                        relief=tk.FLAT, borderwidth=0,
+                        font=("Segoe UI", 9),
+                        padx=12, pady=8)
+        label.pack()
+        
+        # Add subtle shadow effect (Windows only)
+        try:
+            tw.attributes('-alpha', 0.95)
+        except:
+            pass
     
     def hide_tooltip(self, event=None):
         """Hide the tooltip"""
@@ -2016,29 +2025,43 @@ class FileJanitorApp:
         self.execute_button.grid(row=0, column=1)
         self._create_tooltip(self.execute_button, "Execute the organization plan\nShortcut: Ctrl+E\n⚠️ Warning: This will move/rename files!")
         
-        # Progress bar (initially hidden)
+        # Progress bar (initially hidden) with modern styling
         self.progress_frame = ttk.Frame(main_frame)
         self.progress_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), 
-                                pady=(10, 0))
+                                pady=(5, 10))
         self.progress_frame.columnconfigure(0, weight=1)
         
-        self.progress_label = ttk.Label(self.progress_frame, text="")
+        self.progress_label = ttk.Label(self.progress_frame, text="", 
+                                       font=('Segoe UI', 9), foreground='#2196F3')
         self.progress_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         
-        self.progress_bar = ttk.Progressbar(self.progress_frame, mode='determinate', 
-                                           length=300)
+        # Style the progress bar
+        style.configure('Custom.Horizontal.TProgressbar', 
+                       troughcolor='#E0E0E0',
+                       background='#4CAF50',
+                       thickness=20)
+        
+        self.progress_bar = ttk.Progressbar(self.progress_frame, 
+                                           mode='determinate',
+                                           style='Custom.Horizontal.TProgressbar')
         self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E))
         
         # Hide progress bar initially
         self.progress_frame.grid_remove()
         
-        # Status bar
+        # Status bar with modern styling
+        status_frame = ttk.Frame(main_frame, relief='flat')
+        status_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        status_frame.columnconfigure(0, weight=1)
+        
         self.status_var = tk.StringVar()
-        self.status_var.set("Ready - Select a folder to begin")
-        status_bar = ttk.Label(main_frame, textvariable=self.status_var, 
-                             relief="sunken", anchor=tk.W)
-        status_bar.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), 
-                       pady=(10, 0))
+        self.status_var.set("✨ Ready - Select a folder to begin")
+        status_bar = tk.Label(status_frame, textvariable=self.status_var, 
+                            relief='flat', anchor=tk.W,
+                            bg='#E3F2FD', fg='#1976D2',
+                            font=('Segoe UI', 9),
+                            padx=10, pady=5)
+        status_bar.grid(row=0, column=0, sticky=(tk.W, tk.E))
     
     def _create_tooltip(self, widget, text):
         """Create a tooltip for a widget"""
