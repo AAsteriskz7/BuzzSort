@@ -185,3 +185,32 @@
 2025-10-03 15:12:40,975 - INFO -   Moved: ._.DS_Store -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_.system\._.DS_Store
 2025-10-03 15:12:40,975 - INFO -   Moved: ._project1-tester-1.0.jar -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_.system\._project1-tester-1.0.jar
 2025-10-03 15:12:40,981 - INFO -   Moved: ._project1.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch2_.system\._project1.pdf
+2025-10-03 15:26:17,069 - INFO - ============================================================
+2025-10-03 15:26:17,070 - INFO - File Janitor started
+2025-10-03 15:26:17,070 - INFO - ============================================================
+2025-10-03 15:26:19,427 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-03 15:27:06,186 - INFO - [SCAN] Scanned folder: C:/Users/avsad/OneDrive/Desktop/Downloads/batch1_Computer_Architecture - Found 15 files
+2025-10-03 15:27:33,971 - INFO - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2025-10-03 15:27:33,972 - INFO - [AI_ANALYSIS] Analyzed 15 files - Generated 5 clusters
+2025-10-03 15:27:33,983 - INFO - [PLAN_CREATION] Created plan: 5 folders, 15 operations
+2025-10-03 15:27:56,136 - INFO - [PLAN_EXECUTION] [EXECUTION] Folders: 5, Completed: 15, Failed: 0
+2025-10-03 15:27:56,136 - INFO -   Created folder: asm_tests
+2025-10-03 15:27:56,136 - INFO -   Created folder: docs
+2025-10-03 15:27:56,137 - INFO -   Created folder: sim_configs
+2025-10-03 15:27:56,137 - INFO -   Created folder: test_data
+2025-10-03 15:27:56,137 - INFO -   Created folder: tools
+2025-10-03 15:27:56,137 - INFO -   Moved: add.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\asm_tests\add.asm
+2025-10-03 15:27:56,137 - INFO -   Moved: and.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\asm_tests\and.asm
+2025-10-03 15:27:56,138 - INFO -   Moved: coveragetest0.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\asm_tests\coveragetest0.asm
+2025-10-03 15:27:56,138 - INFO -   Moved: coveragetest1.asm -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\asm_tests\coveragetest1.asm
+2025-10-03 15:27:56,138 - INFO -   Moved: add.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\test_data\add.dat
+2025-10-03 15:27:56,138 - INFO -   Moved: and.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\test_data\and.dat
+2025-10-03 15:27:56,138 - INFO -   Moved: coveragetest0.dat -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\test_data\coveragetest0.dat
+2025-10-03 15:27:56,139 - INFO -   Moved: LC-3_ ISA Reference Sheet.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\docs\LC-3_ ISA Reference Sheet.pdf
+2025-10-03 15:27:56,139 - INFO -   Moved: LC3InstructionsDetail.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\docs\LC3InstructionsDetail.pdf
+2025-10-03 15:27:56,139 - INFO -   Moved: project2.pdf -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\docs\project2.pdf
+2025-10-03 15:27:56,139 - INFO -   Moved: CircuitSim.jar -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\tools\CircuitSim.jar
+2025-10-03 15:27:56,139 - INFO -   Moved: proj2-tester.jar -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\tools\proj2-tester.jar
+2025-10-03 15:27:56,140 - INFO -   Moved: latches.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\sim_configs\latches.sim
+2025-10-03 15:27:56,140 - INFO -   Moved: LC3.sim -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\sim_configs\LC3.sim
+2025-10-03 15:27:56,140 - INFO -   Moved: microcode.xlsx -> C:\Users\avsad\OneDrive\Desktop\Downloads\batch1_Computer_Architecture\sim_configs\microcode.xlsx

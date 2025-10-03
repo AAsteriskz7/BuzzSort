@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Intelligent File Janitor - AI-powered file organization tool
+Buzz Sort - AI-Powered File Organization
+Georgia Tech Yellow Jacket Edition
+
+Powered by Claude 3.5 Sonnet
 """
 
 import tkinter as tk
@@ -24,7 +27,7 @@ class OperationLogger:
     """Handles logging of file operations and application events"""
     
     LOG_DIR = "logs"
-    LOG_FILE = "file_janitor.log"
+    LOG_FILE = "buzz_sort.log"
     
     def __init__(self):
         """Initialize the logger"""
@@ -49,9 +52,9 @@ class OperationLogger:
                 ]
             )
             
-            self.logger = logging.getLogger('FileJanitor')
+            self.logger = logging.getLogger('BuzzSort')
             self.logger.info("=" * 60)
-            self.logger.info("File Janitor started")
+            self.logger.info("🐝 Buzz Sort - Georgia Tech Edition Started")
             self.logger.info("=" * 60)
             
         except Exception as e:
@@ -1722,8 +1725,8 @@ class ToolTip:
             self.tooltip_window = None
 
 
-class FileJanitorApp:
-    """Main application class for the Intelligent File Janitor"""
+class BuzzSortApp:
+    """Main application class for Buzz Sort - Georgia Tech Yellow Jacket Edition"""
     
     def __init__(self):
         self.root = tk.Tk()
@@ -2032,34 +2035,31 @@ class FileJanitorApp:
             font=('Segoe UI', 10, 'bold'),
             foreground='#000000'
         )
-        instruction_label.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10))
+        instruction_label.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 10))
         
-        # Add "All Files" option with emphasis
-        all_files_btn = ttk.Button(
-            self.filter_buttons_frame,
-            text=f"📁 All Files ({len(self.scanned_files)} files)",
-            command=lambda: self._select_file_filter(self.scanned_files, "All Files"),
-            style='Primary.TButton',
-            width=35
-        )
-        all_files_btn.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky=(tk.W, tk.E))
-        self._create_tooltip(all_files_btn, f"Organize all {len(self.scanned_files)} files\nMay be processed in batches if >100 files")
+        # Create filter options (3 suggestions + All Files)
+        if not self.date_suggestions:
+            # Create basic file type filters
+            file_types = self.scanner.group_by_type(self.scanned_files)
+            suggestions = []
+            
+            for file_type, type_files in file_types.items():
+                if len(type_files) > 0:
+                    suggestions.append({
+                        'title': f'{file_type.title()}',
+                        'description': f'All {file_type} files',
+                        'file_count': len(type_files),
+                        'files': type_files,
+                        'priority': 'medium'
+                    })
+            
+            # Limit to 3 suggestions
+            suggestions = suggestions[:3]
+        else:
+            suggestions = self.date_suggestions[:3]
         
-        # Add separator
-        separator = ttk.Separator(self.filter_buttons_frame, orient='horizontal')
-        separator.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
-        
-        # Add label for smart suggestions
-        if self.date_suggestions:
-            smart_label = ttk.Label(
-                self.filter_buttons_frame,
-                text="Smart Suggestions (by date):",
-                font=('Arial', 9, 'bold')
-            )
-            smart_label.grid(row=3, column=0, columnspan=3, sticky=tk.W, pady=(0, 5))
-        
-        # Add date-based filter options in a grid
-        for i, suggestion in enumerate(self.date_suggestions[:6]):  # Show top 6 suggestions
+        # Add the 3 filter options + All Files in one row (4 columns)
+        for i, suggestion in enumerate(suggestions):
             priority_icon = "🔥" if suggestion['priority'] == 'high' else "⭐" if suggestion['priority'] == 'medium' else "📋"
             btn_text = f"{priority_icon} {suggestion['title']}\n({suggestion['file_count']} files)"
             
@@ -2067,13 +2067,10 @@ class FileJanitorApp:
                 self.filter_buttons_frame,
                 text=btn_text,
                 command=lambda s=suggestion: self._select_file_filter(s['files'], s['title']),
-                width=28
+                width=15
             )
             
-            # Arrange in 2 columns
-            row = 4 + (i // 2)
-            col = i % 2
-            btn.grid(row=row, column=col, padx=5, pady=5, sticky=(tk.W, tk.E))
+            btn.grid(row=1, column=i, padx=2, pady=3)
             
             tooltip_text = f"{suggestion['description']}\n"
             if suggestion['priority'] == 'high':
@@ -2083,9 +2080,20 @@ class FileJanitorApp:
             
             self._create_tooltip(btn, tooltip_text)
         
-        # Configure column weights for better layout
-        self.filter_buttons_frame.columnconfigure(0, weight=1)
-        self.filter_buttons_frame.columnconfigure(1, weight=1)
+        # Add "All Files" as the 4th button
+        all_files_btn = ttk.Button(
+            self.filter_buttons_frame,
+            text=f"📁 All Files\n({len(self.scanned_files)} files)",
+            command=lambda: self._select_file_filter(self.scanned_files, "All Files"),
+            style='Primary.TButton',
+            width=15
+        )
+        all_files_btn.grid(row=1, column=3, padx=2, pady=3)
+        self._create_tooltip(all_files_btn, f"Organize all {len(self.scanned_files)} files\nMay be processed in batches if >100 files")
+        
+        # Configure column weights for better layout (4 columns)
+        for i in range(4):
+            self.filter_buttons_frame.columnconfigure(i, weight=1)
     
     def _select_file_filter(self, files: List[Dict], filter_name: str):
         """
@@ -3001,11 +3009,14 @@ class FileJanitorApp:
     def show_about(self):
         """Show about dialog"""
         about_message = (
-            "🧹 Intelligent File Janitor\n\n"
-            "AI-powered file organization tool\n\n"
+            "🐝 Buzz Sort\n"
+            "Georgia Tech Yellow Jacket Edition\n\n"
+            "AI-powered file organization tool\n"
+            "Powered by Claude 3.5 Sonnet\n\n"
             "Features:\n"
             "• Automatic file scanning and analysis\n"
             "• AI-based file clustering and organization\n"
+            "• Multimodal content analysis (text & images)\n"
             "• Safe file operations with confirmations\n"
             "• Operation logging and history\n\n"
             "Keyboard Shortcuts:\n"
@@ -3013,9 +3024,10 @@ class FileJanitorApp:
             "• Ctrl+A / F5: Analyze files\n"
             "• Ctrl+E: Execute plan\n"
             "• Ctrl+H: View operation history\n"
-            "• Ctrl+L: Open log file\n"
+            "• Ctrl+L: Open log file\n\n"
+            "Go Jackets! 💛💙"
         )
-        messagebox.showinfo("About File Janitor", about_message)
+        messagebox.showinfo("About Buzz Sort", about_message)
     
     def run(self):
         """Start the application"""
@@ -3023,5 +3035,5 @@ class FileJanitorApp:
 
 
 if __name__ == "__main__":
-    app = FileJanitorApp()
+    app = BuzzSortApp()
     app.run()
